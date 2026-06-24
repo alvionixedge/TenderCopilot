@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   Building2,
+  CreditCard,
   FileText,
   KanbanSquare,
   LayoutDashboard,
@@ -17,6 +18,7 @@ const nav = [
   { href: "/proposals", label: "Proposals", icon: FileText },
   { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },
   { href: "/company", label: "Company", icon: Building2 },
+  { href: "/billing", label: "Billing", icon: CreditCard },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
