@@ -11,7 +11,7 @@ import {
 } from "@/db/schema";
 import { ApiError, parseBody, requireSession, withErrorHandling } from "@/lib/api";
 import { recordAudit } from "@/lib/audit";
-import { consumeEntitlement } from "@/lib/entitlements";
+import { consumeEntitlement, getEffectivePlan } from "@/lib/entitlements";
 import { generateProposal } from "@/lib/proposal";
 import { enforceAiRateLimit } from "@/lib/ratelimit";
 import { getActiveCompany } from "@/lib/tenant";
@@ -41,7 +41,8 @@ export const POST = withErrorHandling(async (req: Request) => {
   }
 
   await enforceAiRateLimit(ctx.userId, ctx.orgId);
-  await consumeEntitlement(ctx.orgId, ctx.plan, "proposals_per_month");
+  const plan = await getEffectivePlan(ctx.orgId);
+  await consumeEntitlement(ctx.orgId, plan, "proposals_per_month");
 
   const d = db();
   const tender = await d.query.tenders.findFirst({ where: eq(tenders.id, body.tenderId) });
