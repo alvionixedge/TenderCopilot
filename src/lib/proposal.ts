@@ -38,15 +38,25 @@ const SYSTEM_PROMPT = `You are a senior bid writer for Indian government procure
  */
 export async function generateProposal(ctx: ProposalContext): Promise<GeneratedProposal> {
   if (isAiConfigured()) {
-    const userPrompt = buildPrompt(ctx);
-    const { text, traceId } = await generateWithTrace({
-      orgId: ctx.orgId,
-      purpose: "proposal",
-      systemPrompt: SYSTEM_PROMPT,
-      userPrompt,
-      maxTokens: 8000,
-    });
-    return { contentMd: text, completeness: estimateCompleteness(text, ctx), traceId };
+    // Provider failure (bad/absent credit, invalid key, quota, timeout) must
+    // never hard-fail generation — fall back to the deterministic template
+    // instead of leaving the user without output (spec §6.2).
+    try {
+      const userPrompt = buildPrompt(ctx);
+      const { text, traceId } = await generateWithTrace({
+        orgId: ctx.orgId,
+        purpose: "proposal",
+        systemPrompt: SYSTEM_PROMPT,
+        userPrompt,
+        maxTokens: 8000,
+      });
+      if (text && text.trim().length > 0) {
+        return { contentMd: text, completeness: estimateCompleteness(text, ctx), traceId };
+      }
+      console.error("[proposal] AI returned empty content — using template fallback");
+    } catch (err) {
+      console.error("[proposal] AI generation failed — using template fallback", err);
+    }
   }
   const contentMd = templateProposal(ctx);
   return { contentMd, completeness: estimateCompleteness(contentMd, ctx), traceId: null };
