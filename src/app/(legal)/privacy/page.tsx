@@ -46,6 +46,13 @@ export default function PrivacyPolicy() {
           are handled by our payment processor (Razorpay) and are never stored on our systems.
         </li>
         <li>
+          <strong>Lead data (free checker):</strong> our public tender-eligibility checker does
+          not store what you type unless you enter your email. If you do, we store your email and
+          that check&rsquo;s details to send you matching tenders. You can ask us to delete this at
+          any time; it is also removed if you create and then delete an account with the same
+          email.
+        </li>
+        <li>
           <strong>Technical data:</strong> session information, IP address in audit logs, and
           error/usage telemetry used to keep the service secure and reliable.
         </li>

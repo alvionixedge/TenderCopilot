@@ -512,3 +512,29 @@ export const notifications = pgTable("notifications", {
   readAt: timestamp("read_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ---------------------------------------------------------------------------
+// leads (marketing funnel — free eligibility checker; not tenant-scoped)
+// Captured only when a visitor to /free-check provides their email.
+// ---------------------------------------------------------------------------
+export const leads = pgTable(
+  "leads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: varchar("email", { length: 255 }).notNull(),
+    companyName: varchar("company_name", { length: 255 }),
+    capabilities: text("capabilities"),
+    tenderText: text("tender_text"),
+    matchScore: smallint("match_score"),
+    eligibilityScore: smallint("eligibility_score"),
+    winProbability: smallint("win_probability"),
+    verdict: varchar("verdict", { length: 20 }),
+    source: varchar("source", { length: 30 }).notNull().default("free_check"),
+    welcomedAt: timestamp("welcomed_at", { withTimezone: true }),
+    matchedEmailAt: timestamp("matched_email_at", { withTimezone: true }),
+    convertedUserId: uuid("converted_user_id").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("leads_email_uq").on(t.email)],
+);

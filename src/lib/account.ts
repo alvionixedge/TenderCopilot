@@ -8,6 +8,7 @@ import {
   companyDocuments,
   invitations,
   jobs,
+  leads,
   memberships,
   membershipCompanyAccess,
   notifications,
@@ -113,6 +114,7 @@ export async function deleteAccount(userId: string): Promise<void> {
   }
 
   const d = db();
+  const account = await d.query.users.findFirst({ where: eq(users.id, userId) });
   const mems = await d.select().from(memberships).where(eq(memberships.userId, userId));
   const orgIds = [...new Set(mems.map((m) => m.orgId))];
 
@@ -157,6 +159,10 @@ export async function deleteAccount(userId: string): Promise<void> {
       await tx.delete(organizations).where(eq(organizations.id, orgId));
     }
 
+    // Remove any marketing lead captured under the same email (RTBF).
+    if (account?.email) {
+      await tx.delete(leads).where(eq(leads.email, account.email));
+    }
     await tx.delete(sessions).where(eq(sessions.userId, userId));
     await tx.delete(users).where(eq(users.id, userId));
   });
