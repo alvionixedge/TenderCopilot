@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { apiError } from "@/lib/api";
+import { apiError, ApiError } from "@/lib/api";
+import { enforcePublicRateLimit } from "@/lib/ratelimit";
 import { scoreTender } from "@/lib/scoring";
 
 export const runtime = "nodejs";
@@ -23,6 +24,13 @@ const schema = z.object({
 });
 
 export async function POST(req: Request) {
+  try {
+    await enforcePublicRateLimit(req, "free-check", 30);
+  } catch (e) {
+    if (e instanceof ApiError) return apiError(e.code, e.message, e.status);
+    throw e;
+  }
+
   let json: unknown;
   try {
     json = await req.json();
