@@ -48,6 +48,13 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 255 }).notNull().unique(),
   emailVerified: timestamp("email_verified", { withTimezone: true }),
   image: text("image"),
+  // First-party email/password auth (deviation from spec §5.1, which was
+  // OAuth-only). NULL for OAuth-provisioned users. Stored as a scrypt hash
+  // with a per-user salt — never the raw password (see src/lib/password.ts).
+  passwordHash: text("password_hash"),
+  // Set when the user self-deactivates; cleared automatically on next login
+  // (reactivate-on-login). Distinct from hard deletion.
+  deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
