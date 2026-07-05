@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { apiError } from "@/lib/api";
+import { apiError, ApiError } from "@/lib/api";
+import { enforcePublicRateLimit } from "@/lib/ratelimit";
 import { captureLeadAndNotify } from "@/lib/leads";
 
 export const runtime = "nodejs";
@@ -24,6 +25,14 @@ const schema = z.object({
 });
 
 export async function POST(req: Request) {
+  // Stricter cap than the scorer — this endpoint sends email.
+  try {
+    await enforcePublicRateLimit(req, "leads", 6);
+  } catch (e) {
+    if (e instanceof ApiError) return apiError(e.code, e.message, e.status);
+    throw e;
+  }
+
   let json: unknown;
   try {
     json = await req.json();
