@@ -6,9 +6,16 @@ import { Logo } from "@/components/logo";
 
 export const metadata = { title: "Sign in" };
 
-export default async function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ email?: string }>;
+}) {
   const session = await auth();
   if (session?.userId) redirect("/dashboard");
+
+  const { email } = await searchParams;
+  const prefillEmail = typeof email === "string" ? email : undefined;
 
   const hasGoogle = configuredProviders.includes("google");
   const hasMicrosoft = configuredProviders.includes("microsoft-entra-id");
@@ -92,7 +99,12 @@ export default async function SignInPage() {
             </div>
           )}
 
-          {credentialsEnabled && <CredentialsForm />}
+          {credentialsEnabled && (
+            <CredentialsForm
+              initialEmail={prefillEmail}
+              initialMode={prefillEmail ? "signup" : "signin"}
+            />
+          )}
 
           <p className="mt-8 text-center text-xs text-slate-500">
             By continuing you agree to our{" "}

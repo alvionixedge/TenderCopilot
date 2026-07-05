@@ -91,6 +91,7 @@ export default function LandingPage() {
             <a href="#features" className="hover:text-brand-700">Features</a>
             <a href="#how" className="hover:text-brand-700">How it works</a>
             <a href="#pricing" className="hover:text-brand-700">Pricing</a>
+            <Link href="/free-check" className="hover:text-brand-700">Free check</Link>
           </nav>
           <div className="flex items-center gap-3">
             <Link

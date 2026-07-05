@@ -5,9 +5,15 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { Loader2 } from "lucide-react";
 
-export function CredentialsForm() {
+export function CredentialsForm({
+  initialEmail,
+  initialMode,
+}: {
+  initialEmail?: string;
+  initialMode?: "signin" | "signup";
+}) {
   const router = useRouter();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode ?? "signin");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,6 +68,7 @@ export function CredentialsForm() {
           type="email"
           required
           autoComplete="email"
+          defaultValue={initialEmail}
           placeholder="you@company.com"
           className={field}
         />
