@@ -27,6 +27,11 @@ export async function provisionUser(input: {
   });
 
   if (existing) {
+    // Reactivate-on-login: clear any self-deactivation flag when the user
+    // successfully authenticates again.
+    if (existing.deactivatedAt) {
+      await d.update(users).set({ deactivatedAt: null }).where(eq(users.id, existing.id));
+    }
     const membership = await d.query.memberships.findFirst({
       where: eq(memberships.userId, existing.id),
     });
@@ -63,7 +68,10 @@ export async function provisionUser(input: {
   return createOrgFor(user.id, input.name);
 }
 
-async function createOrgFor(userId: string, displayName: string): Promise<ProvisionedIdentity> {
+export async function createOrgFor(
+  userId: string,
+  displayName: string,
+): Promise<ProvisionedIdentity> {
   const d = db();
   const [org] = await d
     .insert(organizations)
