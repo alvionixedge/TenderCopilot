@@ -1,7 +1,10 @@
+import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { memberships, organizations, subscriptions, users } from "@/db/schema";
+import { AccountDanger } from "@/components/account-danger";
+import { checkDeletionEligibility } from "@/lib/account";
 import { tryQuery } from "@/lib/safe";
 
 export const metadata = { title: "Settings" };
@@ -9,6 +12,11 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const session = (await auth())!;
+
+  const eligibility = await tryQuery(
+    () => checkDeletionEligibility(session.userId),
+    { canDelete: false, reason: "Deletion is temporarily unavailable." },
+  );
 
   const [org, subscription, members] = await Promise.all([
     tryQuery(
@@ -90,10 +98,29 @@ export default async function SettingsPage() {
           )}
         </ul>
         <p className="mt-4 text-xs text-slate-500">
-          Member invitations and Razorpay billing management ship in the next milestone
-          (spec Sections 3.20, 11).
+          Member invitations ship in the next milestone (spec Section 3.20).
         </p>
       </div>
+
+      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900">Policies</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          How we handle your account and data.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-3 text-sm">
+          <Link href="/privacy" className="font-medium text-brand-700 hover:underline">
+            Privacy Policy
+          </Link>
+          <Link href="/security" className="font-medium text-brand-700 hover:underline">
+            Data &amp; Security Policy
+          </Link>
+          <Link href="/terms" className="font-medium text-brand-700 hover:underline">
+            Terms of Service
+          </Link>
+        </div>
+      </div>
+
+      <AccountDanger canDelete={eligibility.canDelete} deleteBlockedReason={eligibility.reason} />
     </div>
   );
 }
