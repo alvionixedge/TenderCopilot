@@ -56,7 +56,29 @@ export function FreeCheckForm() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error?.message ?? "Could not run the check.");
-      setResult(json as Result);
+      const scored = json as Result;
+      setResult(scored);
+
+      // If they gave an email, capture the lead in the background (welcome +
+      // matching-tenders emails) without blocking the result display.
+      const leadEmail = String(fd.get("email") ?? "").trim();
+      if (leadEmail) {
+        void fetch("/api/v1/leads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          keepalive: true,
+          body: JSON.stringify({
+            email: leadEmail,
+            companyName: fd.get("companyName") || "",
+            capabilities: fd.get("capabilities"),
+            tenderText: fd.get("tenderText"),
+            matchScore: scored.matchScore,
+            eligibilityScore: scored.eligibilityScore,
+            winProbability: scored.winProbability,
+            verdict: scored.verdict,
+          }),
+        }).catch(() => {});
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -183,7 +205,10 @@ export function FreeCheckForm() {
 
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-slate-700">
-            Work email <span className="font-normal text-slate-400">(optional — to save your result)</span>
+            Work email{" "}
+            <span className="font-normal text-slate-400">
+              (optional — we&apos;ll email you matching tenders)
+            </span>
           </span>
           <input name="email" type="email" className={field} placeholder="you@company.com" />
         </label>
@@ -200,7 +225,9 @@ export function FreeCheckForm() {
         {busy ? "Checking…" : "Check my eligibility — free"}
       </button>
       <p className="mt-3 text-center text-xs text-slate-400">
-        Free, instant, no signup required. We don&apos;t store what you enter here.
+        Free, instant, no signup required. The check itself isn&apos;t stored; if you add your
+        email, we save it to send matching tenders — see our{" "}
+        <Link href="/privacy" className="underline hover:text-slate-600">Privacy Policy</Link>.
       </p>
     </form>
   );
