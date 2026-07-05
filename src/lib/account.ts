@@ -13,6 +13,7 @@ import {
   notifications,
   opportunities,
   organizations,
+  paymentEvents,
   proposals,
   proposalVersions,
   sessions,
@@ -146,6 +147,7 @@ export async function deleteAccount(userId: string): Promise<void> {
       await tx.delete(companies).where(eq(companies.orgId, orgId));
       await tx.delete(aiGenerations).where(eq(aiGenerations.orgId, orgId));
       await tx.delete(usageCounters).where(eq(usageCounters.orgId, orgId));
+      await tx.delete(paymentEvents).where(eq(paymentEvents.orgId, orgId));
       await tx.delete(notifications).where(eq(notifications.orgId, orgId));
       await tx.delete(invitations).where(eq(invitations.orgId, orgId));
       await tx.delete(subscriptions).where(eq(subscriptions.orgId, orgId));
