@@ -1,7 +1,21 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { planFeatures, usageCounters } from "@/db/schema";
+import { organizations, planFeatures, usageCounters } from "@/db/schema";
 import { ApiError } from "./errors";
+
+/**
+ * The org's current plan read live from the DB — used for entitlement
+ * enforcement so a billing upgrade applies immediately, without waiting
+ * for the session JWT to refresh.
+ */
+export async function getEffectivePlan(orgId: string): Promise<string> {
+  const rows = await db()
+    .select({ plan: organizations.plan })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
+  return rows[0]?.plan ?? "free";
+}
 
 /** Default entitlement caps; mirrored in the seeded plan_features rows. */
 export const DEFAULT_LIMITS: Record<string, Record<string, number | null>> = {

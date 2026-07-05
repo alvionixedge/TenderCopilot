@@ -469,6 +469,26 @@ export const sessions = pgTable("sessions", {
 });
 
 // ---------------------------------------------------------------------------
+// 3.22 payment_events (refunds, chargebacks, disputes)
+// ---------------------------------------------------------------------------
+export const paymentEvents = pgTable(
+  "payment_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    razorpayEventId: varchar("razorpay_event_id", { length: 80 }).notNull(),
+    type: varchar("type", { length: 30 }).notNull(), // payment | refund | partial_refund | chargeback | dispute
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    status: varchar("status", { length: 20 }).notNull(), // captured | refunded | disputed | reversed
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("payment_events_event_uq").on(t.razorpayEventId)],
+);
+
+// ---------------------------------------------------------------------------
 // 3.29 notifications
 // ---------------------------------------------------------------------------
 export const notifications = pgTable("notifications", {
