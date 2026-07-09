@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { companies } from "@/db/schema";
 import { parseBody, requireSession, withErrorHandling } from "@/lib/api";
 import { recordAudit } from "@/lib/audit";
-import { consumeEntitlement } from "@/lib/entitlements";
+import { consumeEntitlement, getEffectivePlan } from "@/lib/entitlements";
 
 const createCompanySchema = z.object({
   companyName: z.string().min(2).max(255),
@@ -23,7 +23,8 @@ export const POST = withErrorHandling(async (req: Request) => {
   const ctx = await requireSession();
   const body = await parseBody(req, createCompanySchema);
 
-  await consumeEntitlement(ctx.orgId, ctx.plan, "companies");
+  const plan = await getEffectivePlan(ctx.orgId);
+  await consumeEntitlement(ctx.orgId, plan, "companies");
 
   const [company] = await db()
     .insert(companies)

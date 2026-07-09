@@ -1,16 +1,25 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth, configuredProviders, signIn } from "@/auth";
+import { auth, configuredProviders, credentialsEnabled, signIn } from "@/auth";
+import { CredentialsForm } from "@/components/credentials-form";
 import { Logo } from "@/components/logo";
 
 export const metadata = { title: "Sign in" };
 
-export default async function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ email?: string }>;
+}) {
   const session = await auth();
   if (session?.userId) redirect("/dashboard");
 
+  const { email } = await searchParams;
+  const prefillEmail = typeof email === "string" ? email : undefined;
+
   const hasGoogle = configuredProviders.includes("google");
   const hasMicrosoft = configuredProviders.includes("microsoft-entra-id");
+  const hasOAuth = hasGoogle || hasMicrosoft;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-brand-50 to-white px-4">
@@ -70,22 +79,53 @@ export default async function SignInPage() {
                 </button>
               </form>
             )}
-            {!hasGoogle && !hasMicrosoft && (
+            {!hasOAuth && !credentialsEnabled && (
               <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
                 <strong>Sign-in is not configured yet.</strong> Set{" "}
-                <code className="font-mono text-xs">AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET</code>{" "}
-                (and/or the Microsoft Entra ID variables) plus{" "}
-                <code className="font-mono text-xs">AUTH_SECRET</code> in the Vercel
-                environment settings, then redeploy.
+                <code className="font-mono text-xs">AUTH_SECRET</code> plus{" "}
+                <code className="font-mono text-xs">DATABASE_URL</code> (for email/password)
+                and/or the OAuth variables in the Vercel environment settings, then redeploy.
               </div>
             )}
           </div>
 
+          {hasOAuth && credentialsEnabled && (
+            <div className="my-6 flex items-center gap-3">
+              <span className="h-px flex-1 bg-slate-200" />
+              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                or with email
+              </span>
+              <span className="h-px flex-1 bg-slate-200" />
+            </div>
+          )}
+
+          {credentialsEnabled && (
+            <CredentialsForm
+              initialEmail={prefillEmail}
+              initialMode={prefillEmail ? "signup" : "signin"}
+            />
+          )}
+
           <p className="mt-8 text-center text-xs text-slate-500">
-            By signing in you agree to the processing of your business data for tender
-            matching and proposal generation.
+            By continuing you agree to our{" "}
+            <Link href="/terms" className="font-medium text-brand-700 hover:underline">
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="font-medium text-brand-700 hover:underline">
+              Privacy Policy
+            </Link>
+            , and to the processing of your business data for tender matching and proposal
+            generation.
           </p>
         </div>
+
+        <p className="mt-6 text-center text-xs text-slate-400">
+          <Link href="/privacy" className="hover:text-slate-600">Privacy</Link> ·{" "}
+          <Link href="/terms" className="hover:text-slate-600">Terms</Link> ·{" "}
+          <Link href="/security" className="hover:text-slate-600">Data &amp; Security</Link> ·{" "}
+          <Link href="/refunds" className="hover:text-slate-600">Refunds</Link>
+        </p>
       </div>
     </main>
   );
