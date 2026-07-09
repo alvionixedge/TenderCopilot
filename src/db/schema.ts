@@ -48,6 +48,13 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 255 }).notNull().unique(),
   emailVerified: timestamp("email_verified", { withTimezone: true }),
   image: text("image"),
+  // First-party email/password auth (deviation from spec §5.1, which was
+  // OAuth-only). NULL for OAuth-provisioned users. Stored as a scrypt hash
+  // with a per-user salt — never the raw password (see src/lib/password.ts).
+  passwordHash: text("password_hash"),
+  // Set when the user self-deactivates; cleared automatically on next login
+  // (reactivate-on-login). Distinct from hard deletion.
+  deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -469,6 +476,26 @@ export const sessions = pgTable("sessions", {
 });
 
 // ---------------------------------------------------------------------------
+// 3.22 payment_events (refunds, chargebacks, disputes)
+// ---------------------------------------------------------------------------
+export const paymentEvents = pgTable(
+  "payment_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    razorpayEventId: varchar("razorpay_event_id", { length: 80 }).notNull(),
+    type: varchar("type", { length: 30 }).notNull(), // payment | refund | partial_refund | chargeback | dispute
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    status: varchar("status", { length: 20 }).notNull(), // captured | refunded | disputed | reversed
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("payment_events_event_uq").on(t.razorpayEventId)],
+);
+
+// ---------------------------------------------------------------------------
 // 3.29 notifications
 // ---------------------------------------------------------------------------
 export const notifications = pgTable("notifications", {
@@ -485,3 +512,29 @@ export const notifications = pgTable("notifications", {
   readAt: timestamp("read_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ---------------------------------------------------------------------------
+// leads (marketing funnel — free eligibility checker; not tenant-scoped)
+// Captured only when a visitor to /free-check provides their email.
+// ---------------------------------------------------------------------------
+export const leads = pgTable(
+  "leads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: varchar("email", { length: 255 }).notNull(),
+    companyName: varchar("company_name", { length: 255 }),
+    capabilities: text("capabilities"),
+    tenderText: text("tender_text"),
+    matchScore: smallint("match_score"),
+    eligibilityScore: smallint("eligibility_score"),
+    winProbability: smallint("win_probability"),
+    verdict: varchar("verdict", { length: 20 }),
+    source: varchar("source", { length: 30 }).notNull().default("free_check"),
+    welcomedAt: timestamp("welcomed_at", { withTimezone: true }),
+    matchedEmailAt: timestamp("matched_email_at", { withTimezone: true }),
+    convertedUserId: uuid("converted_user_id").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("leads_email_uq").on(t.email)],
+);

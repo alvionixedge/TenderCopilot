@@ -21,6 +21,8 @@ deploys automatically.
 | Anthropic | console.anthropic.com | Claude API (scoring & proposals) | Pay-per-use |
 | Cloudflare | dash.cloudflare.com | R2 document storage (optional at first) | 10 GB |
 | Upstash | upstash.com | Redis rate limiting (optional at first) | 10K cmd/day |
+| Razorpay | razorpay.com | Payments / subscriptions (optional at first) | Pay-per-transaction |
+| Resend | resend.com | Transactional & funnel email (optional at first) | 3K emails/mo |
 
 **Minimum to go live:** Vercel + Neon + Google OAuth + AUTH_SECRET. Everything else
 can be added later — the app degrades gracefully (uploads disabled, heuristic scoring
@@ -266,6 +268,92 @@ production (spec §7.5). Branches are deleted automatically when the PR closes.
   env var (wiring ships in a later milestone; the variable is reserved).
 - **Vercel Analytics / Logs:** Project → Observability — no setup needed; check
   function logs under **Logs** if anything misbehaves.
+
+---
+
+## Phase 4 — Payments (Razorpay billing)
+
+The billing code (one-time monthly payments + recurring subscriptions) is built in.
+This phase activates it. Do all setup in **Test Mode** first — it works immediately;
+accepting real money requires **Account Activation (KYC)**, covered in 4.6.
+
+The app degrades gracefully: until these variables are set, the **Billing** page shows
+"Payments are not configured" instead of erroring.
+
+### Environment variables this phase produces
+
+| Variable | Source | Required for |
+|---|---|---|
+| `RAZORPAY_KEY_ID` | 4.2 | all payments |
+| `RAZORPAY_KEY_SECRET` | 4.2 | all payments |
+| `RAZORPAY_WEBHOOK_SECRET` | 4.3 | activating plans after payment |
+| `RAZORPAY_PLAN_PRO` | 4.4 | recurring "Subscribe" on Pro |
+| `RAZORPAY_PLAN_BUSINESS` | 4.4 | recurring "Subscribe" on Business |
+
+One-time "Pay once" works with just the first three; the Plan IDs are only for recurring
+auto-billing.
+
+### 4.1 Create the account
+1. **razorpay.com** → **Sign Up** with your business email.
+2. In the Dashboard, confirm the **Test / Live** toggle (top area) is on **Test Mode**.
+
+### 4.2 Get API keys (Test Mode)
+1. **Settings → API Keys** → **Generate Test Key**.
+2. Copy **Key ID** (`rzp_test_…`) → `RAZORPAY_KEY_ID`, and **Key Secret** (shown once) →
+   `RAZORPAY_KEY_SECRET`. If you miss the secret, regenerate.
+
+### 4.3 Create the webhook
+1. **Settings → Webhooks → + Add New Webhook**.
+2. **URL:** `https://tendercopilot.in/api/webhooks/razorpay`
+3. **Secret:** generate your own (`openssl rand -base64 32`) → `RAZORPAY_WEBHOOK_SECRET`.
+   (This is *your* secret; the app verifies each webhook's signature against it — spec §8.5.)
+4. **Active Events** — tick exactly: `payment.captured`, `subscription.activated`,
+   `subscription.charged`, `subscription.cancelled`, `subscription.completed`,
+   `subscription.halted`, `refund.created`, `refund.processed`.
+5. **Create Webhook.**
+
+### 4.4 Create Plans (recurring only — skip for one-time payments)
+1. **Subscriptions → Plans → Create Plan** (enable the Subscriptions product if prompted).
+2. **Pro:** Monthly · interval 1 · **₹4,999** → copy Plan ID (`plan_…`) → `RAZORPAY_PLAN_PRO`.
+3. **Business:** Monthly · interval 1 · **₹14,999** → copy Plan ID → `RAZORPAY_PLAN_BUSINESS`.
+
+### 4.5 Wire into Vercel & test
+1. **Vercel → Settings → Environment Variables** → add the five variables (Production,
+   and Preview if you want to test on previews) → **Redeploy**.
+2. Sign in → **Billing** (owner/admin only) → **Subscribe** or **Pay once** on Pro.
+3. Pay with a test instrument: card `4111 1111 1111 1111` (any future expiry/CVV) or UPI
+   `success@razorpay`.
+4. Confirm: the plan flips to **Pro**, a row appears under **Payment history**, and (for
+   recurring) a subscription shows in Razorpay → Subscriptions. In Razorpay → Webhooks,
+   recent deliveries should be `2xx`.
+
+### 4.6 Go live — Account Activation (KYC) for an Indian business
+Live payments require Razorpay to verify your business. **Settings → Account Activation**
+(or the "Activate account" banner) and provide:
+
+- **Business type** — Proprietorship, Partnership, LLP, Private Limited, etc. (determines
+  the documents asked for).
+- **Business PAN** — company PAN for registered entities; personal PAN for a proprietorship.
+- **GSTIN** — if registered (needed for GST-compliant invoicing; you can declare "not
+  registered" if you're below the threshold).
+- **Identity/address** of the authorised signatory/director (PAN + Aadhaar-linked details).
+- **Settlement bank account** — account number + IFSC where payouts land; a cancelled
+  cheque or bank statement may be requested. The account name should match the business.
+- **Business category / website** — use `https://tendercopilot.in`; Razorpay reviews the
+  site, so it must be live with visible **Pricing**, **Terms**, **Privacy**, **Refund/
+  Cancellation**, and **Contact** — your `/terms`, `/privacy`, and pricing pages cover most
+  of this (add a refund/contact line if the reviewer asks).
+
+Review typically takes **1–2 business days**. Once activated:
+1. Flip the dashboard to **Live Mode** and redo **4.2–4.4 in Live Mode**: generate **Live**
+   keys (`rzp_live_…`), create a **Live** webhook (same URL, fresh secret), and create
+   **Live** Plans (new `plan_…` IDs).
+2. Update the five Vercel variables with the **Live** values → **Redeploy**.
+3. Run one small real transaction and confirm it settles to your bank account.
+
+> Recurring subscriptions require the customer to approve a mandate (UPI AutoPay / card
+> e-mandate) at checkout; the built flow handles it, and the `subscription.charged` webhook
+> renews the plan each cycle.
 
 ---
 

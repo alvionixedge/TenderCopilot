@@ -19,7 +19,7 @@ documents (DOCX), and tracks the full bid lifecycle through an integrated Kanban
 | Frontend + API | Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS 4 |
 | Database | Neon serverless PostgreSQL + pgvector |
 | ORM | Drizzle ORM + postgres.js (SQL-first migrations) |
-| Auth | NextAuth.js v5 (Auth.js) — Google & Microsoft Entra ID OAuth |
+| Auth | NextAuth.js v5 (Auth.js) — Google & Microsoft OAuth **plus first-party email/password** (scrypt-hashed) |
 | Object storage | Cloudflare R2 (private, pre-signed URLs ≤300 s) |
 | AI | Claude API (`claude-haiku-4-5`) with deterministic fallback |
 | Async / rate limiting | Vercel Cron + Upstash Redis |
@@ -80,6 +80,13 @@ proposal generation with revisioned DOCX output (§4.4, §3.10–3.11), CRM pipe
 with optimistic concurrency + win/loss capture (§4.5, §6.4, §3.13), entitlements &
 usage metering (§3.18–3.19), audit log (§3.15), jobs table (§3.14), idempotent cron
 ingestion (§6.1), health endpoint & CI/CD pipeline (§7).
+
+Also added beyond the original spec (per product requirements): first-party
+email/password sign-in with scrypt hashing + per-user salt (§5.1 was OAuth-only —
+this is a deliberate, documented deviation), public **Privacy Policy**, **Data &
+Security Policy** (incl. password-storage disclosure), and **Terms of Service**
+pages, and self-service **account deactivation** (reversible) and **deletion**
+(RTBF — cascades all org data in one transaction).
 
 Staged for next milestones (per the spec's own phased plan, §10.4): Postgres RLS
 policies (§8.1), QStash background workers (§9.2), Razorpay billing (§11), malware
