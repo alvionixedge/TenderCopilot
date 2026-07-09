@@ -83,6 +83,7 @@ export default function FreeCheckPage() {
             <Link href="/privacy" className="hover:text-brand-700">Privacy</Link>
             <Link href="/security" className="hover:text-brand-700">Data &amp; Security</Link>
             <Link href="/terms" className="hover:text-brand-700">Terms</Link>
+            <Link href="/refunds" className="hover:text-brand-700">Refunds</Link>
           </nav>
         </div>
       </footer>

@@ -123,7 +123,8 @@ export default async function SignInPage({
         <p className="mt-6 text-center text-xs text-slate-400">
           <Link href="/privacy" className="hover:text-slate-600">Privacy</Link> ·{" "}
           <Link href="/terms" className="hover:text-slate-600">Terms</Link> ·{" "}
-          <Link href="/security" className="hover:text-slate-600">Data &amp; Security</Link>
+          <Link href="/security" className="hover:text-slate-600">Data &amp; Security</Link> ·{" "}
+          <Link href="/refunds" className="hover:text-slate-600">Refunds</Link>
         </p>
       </div>
     </main>

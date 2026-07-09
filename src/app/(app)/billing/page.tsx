@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { Check, CreditCard } from "lucide-react";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { organizations, paymentEvents, subscriptions } from "@/db/schema";
+import { CancelButton } from "@/components/cancel-button";
 import { UpgradeButton } from "@/components/upgrade-button";
 import { isRazorpayConfigured } from "@/lib/razorpay";
 import { PAID_PLANS, PLANS, razorpayPlanIdFor, type PlanId } from "@/lib/plans";
@@ -58,9 +60,23 @@ export default async function BillingPage() {
           <div className="mt-1 text-sm text-slate-600">
             Status: <span className="font-medium capitalize">{subscription?.status ?? "free"}</span>
             {subscription?.currentPeriodEnd && (
-              <> · renews/expires {new Date(subscription.currentPeriodEnd).toLocaleDateString("en-IN")}</>
+              <>
+                {" "}
+                · {subscription?.cancelAtPeriodEnd ? "access until" : "renews/expires"}{" "}
+                {new Date(subscription.currentPeriodEnd).toLocaleDateString("en-IN")}
+              </>
             )}
           </div>
+          {currentPlan !== "free" && subscription?.cancelAtPeriodEnd && (
+            <div className="mt-2 inline-block rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
+              Cancels at period end — no further charges
+            </div>
+          )}
+          {currentPlan !== "free" && canManage && !subscription?.cancelAtPeriodEnd && (
+            <div className="mt-3">
+              <CancelButton />
+            </div>
+          )}
         </div>
         <CreditCard className="h-10 w-10 text-brand-600" />
       </div>
@@ -180,8 +196,13 @@ export default async function BillingPage() {
       )}
 
       <p className="mt-6 text-xs text-slate-500">
-        GST tax-invoice generation (spec §3.23) is on the roadmap; payments are recorded and
-        receipts are available from Razorpay in the meantime.
+        Cancel anytime — you won&apos;t be charged again and keep access until the period you&apos;ve
+        paid for ends; amounts already paid are non-refundable. See our{" "}
+        <Link href="/refunds" className="font-medium text-brand-700 hover:underline">
+          Refund &amp; Cancellation Policy
+        </Link>
+        . GST tax-invoice generation (spec §3.23) is on the roadmap; receipts are available from
+        Razorpay in the meantime.
       </p>
     </div>
   );

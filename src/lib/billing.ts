@@ -69,6 +69,28 @@ export async function downgradeToFree(orgId: string): Promise<void> {
   await db().update(organizations).set({ plan: "free" }).where(eq(organizations.id, orgId));
 }
 
+/**
+ * Schedules cancellation at period end (spec §11): stops future renewals but
+ * keeps the plan active until the paid period ends — no refund. Cancels the
+ * Razorpay subscription at cycle end if one is attached.
+ */
+export async function scheduleCancellation(orgId: string): Promise<void> {
+  const d = db();
+  const sub = await d.query.subscriptions.findFirst({ where: eq(subscriptions.orgId, orgId) });
+  if (sub?.razorpaySubscriptionId) {
+    const { cancelSubscription } = await import("./razorpay");
+    try {
+      await cancelSubscription(sub.razorpaySubscriptionId);
+    } catch (err) {
+      console.error("[billing] Razorpay cancel failed", err);
+    }
+  }
+  await d
+    .update(subscriptions)
+    .set({ cancelAtPeriodEnd: true, updatedAt: new Date() })
+    .where(eq(subscriptions.orgId, orgId));
+}
+
 /** Records a payment lifecycle event idempotently (spec §3.22). */
 export async function recordPaymentEvent(entry: {
   orgId: string;

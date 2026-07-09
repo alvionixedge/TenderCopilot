@@ -75,6 +75,17 @@ export async function createSubscription(opts: {
   });
 }
 
+/**
+ * Cancels a recurring subscription at the end of the current billing cycle
+ * (cancel_at_cycle_end=1) — the customer keeps access for the period they
+ * already paid for; no refund is issued.
+ */
+export async function cancelSubscription(subscriptionId: string): Promise<RazorpaySubscription> {
+  return rzpPost<RazorpaySubscription>(`/subscriptions/${subscriptionId}/cancel`, {
+    cancel_at_cycle_end: 1,
+  });
+}
+
 function safeEqualHex(a: string, b: string): boolean {
   const ba = Buffer.from(a, "utf8");
   const bb = Buffer.from(b || "", "utf8");

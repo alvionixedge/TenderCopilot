@@ -9,10 +9,11 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
           <Link href="/">
             <Logo size="sm" />
           </Link>
-          <nav className="flex gap-4 text-sm text-slate-600">
+          <nav className="flex flex-wrap gap-4 text-sm text-slate-600">
             <Link href="/privacy" className="hover:text-brand-700">Privacy</Link>
             <Link href="/security" className="hover:text-brand-700">Data &amp; Security</Link>
             <Link href="/terms" className="hover:text-brand-700">Terms</Link>
+            <Link href="/refunds" className="hover:text-brand-700">Refunds</Link>
           </nav>
         </div>
       </header>
