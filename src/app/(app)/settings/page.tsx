@@ -117,6 +117,9 @@ export default async function SettingsPage() {
           <Link href="/terms" className="font-medium text-brand-700 hover:underline">
             Terms of Service
           </Link>
+          <Link href="/refunds" className="font-medium text-brand-700 hover:underline">
+            Refund &amp; Cancellation
+          </Link>
         </div>
       </div>
 
