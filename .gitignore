@@ -59,3 +59,7 @@ TenderCopilot_AI_Technical_Specification_v6.1.docx
 # claude local settings
 .claude/
 files/
+
+# filled-in credentials inventory (keep in a password manager, never commit)
+CREDENTIALS.md
+credentials.md
