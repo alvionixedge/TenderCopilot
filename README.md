@@ -104,6 +104,7 @@ committed.** Scope each to **Production** (and **Preview** if you want previews 
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google OAuth client | Google Cloud → Credentials → OAuth client |
 | `CRON_SECRET` | Bearer token the cron ingestion route requires | `openssl rand -base64 32` |
 | `NEXT_PUBLIC_APP_URL` | Base URL for links in emails and metadata | `https://www.tendercopilot.in` |
+| `ADMIN_EMAILS` | Comma-separated emails allowed to see the platform-wide `/admin` Ops dashboard | your founder/ops email(s) |
 
 ### Recommended
 

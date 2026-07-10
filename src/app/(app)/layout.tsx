@@ -4,12 +4,14 @@ import {
   Building2,
   CreditCard,
   FileText,
+  Gauge,
   KanbanSquare,
   LayoutDashboard,
   Radar,
   Settings,
 } from "lucide-react";
 import { auth, signOut } from "@/auth";
+import { isAdminUser } from "@/lib/admin";
 import { Logo, Mark } from "@/components/logo";
 
 const nav = [
@@ -25,6 +27,8 @@ const nav = [
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.userId) redirect("/signin");
+
+  const showOps = isAdminUser(session.user?.email);
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -46,6 +50,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               {item.label}
             </Link>
           ))}
+          {showOps && (
+            <Link
+              href="/admin"
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-brand-700 hover:bg-brand-50"
+            >
+              <Gauge className="h-4.5 w-4.5 text-brand-500" />
+              Ops
+            </Link>
+          )}
         </nav>
         <div className="border-t border-slate-200 p-4">
           <div className="mb-3 flex items-center gap-3">
