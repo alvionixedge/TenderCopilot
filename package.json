@@ -15,7 +15,9 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "node scripts/seed.mjs"
+    "db:seed": "node scripts/seed.mjs",
+    "db:purge-samples": "node scripts/purge-sample-tenders.mjs",
+    "crawl:cppp": "tsx scripts/crawl-cppp.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.56.0",

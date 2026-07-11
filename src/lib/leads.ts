@@ -1,7 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { db, isDbConfigured } from "@/db";
 import { leads, tenders } from "@/db/schema";
-import { SAMPLE_TENDERS } from "@/lib/sample-tenders";
 import { scoreTender, type CompanyProfileInput } from "@/lib/scoring";
 import { matchingTendersEmail, sendEmail, welcomeEmail, type MatchLine } from "@/lib/email";
 
@@ -111,22 +110,9 @@ async function topMatchesForCapabilities(
     .orderBy(desc(tenders.createdAt))
     .limit(60);
 
-  const pool =
-    rows.length > 0
-      ? rows
-      : SAMPLE_TENDERS.map((t) => ({
-          title: t.title,
-          department: t.department,
-          source: t.source,
-          submissionDate: (() => {
-            const d = new Date();
-            d.setDate(d.getDate() + t.daysToDeadline);
-            return d;
-          })(),
-          estimatedValue: String(t.estimatedValue),
-        }));
-
-  return pool
+  // Live tenders only — if the feed is empty, the matching email simply has
+  // no rows (no sample fallback).
+  return rows
     .map((t) => {
       const r = scoreTender(company, {
         title: t.title,
