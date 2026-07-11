@@ -6,6 +6,7 @@ import { tenderMatches, tenders } from "@/db/schema";
 import { ScoreBadge, StatusPill } from "@/components/score-badge";
 import { AnalyzeButton } from "@/components/actions";
 import { getActiveCompany } from "@/lib/tenant";
+import { isRealFeedConfigured } from "@/lib/tender-feed";
 import { tryQuery } from "@/lib/safe";
 
 export const metadata = { title: "Tenders" };
@@ -77,6 +78,15 @@ export default async function TendersPage() {
           </p>
         </div>
       </div>
+
+      {!isRealFeedConfigured() && (
+        <div className="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
+          <strong>Sample data.</strong> A live tender feed isn&apos;t connected yet, so these are
+          illustrative examples. Set <code className="font-mono text-xs">TENDER_FEED_URL</code> to
+          your tender-data provider to show real tenders (see README → Making common changes →
+          &ldquo;add a tender source&rdquo;).
+        </div>
+      )}
 
       {!company && (
         <div className="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">

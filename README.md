@@ -234,7 +234,7 @@ Where to look/change for each feature:
 | **Tender scoring engine** (match / eligibility / win) | `src/lib/scoring.ts` |
 | **AI reasoning & traceability** | `src/lib/ai.ts` (Claude call + `ai_generations` logging) |
 | **Proposal generation** (Claude + template fallback) | `src/lib/proposal.ts`, DOCX render `src/lib/docx.ts` |
-| **Tender ingestion source** | `src/lib/sample-tenders.ts` (curated feed), cron `src/app/api/cron/ingest/route.ts` |
+| **Tender ingestion source** | `src/lib/tender-feed.ts` (live feed via `TENDER_FEED_URL` + sample fallback `src/lib/sample-tenders.ts`), cron `src/app/api/cron/ingest/route.ts` |
 | **Company documents / R2 uploads** | `src/lib/r2.ts`, route `src/app/api/v1/companies/[id]/documents/route.ts` |
 | **Plan limits / usage metering** | `src/lib/entitlements.ts` (`DEFAULT_LIMITS`, `consumeEntitlement`) |
 | **Plans & pricing** | `src/lib/plans.ts` (`PLANS`) + seeded `plan_features` (`scripts/seed.mjs`) |
@@ -303,10 +303,20 @@ Document it in `.env.example` and (if it's a new service) in [§2](#2-services--
 Create/replace the Plan in the Razorpay dashboard → copy the new `plan_…` id → update the env var
 → redeploy. Test-mode and Live-mode plans are separate objects.
 
-### Change the tender source / add real portals
-Today the feed is a curated dataset in `src/lib/sample-tenders.ts`. To add a real portal, produce
-the same `IncomingTender` shape from a crawler/adapter and feed it into the upsert in
-`src/app/api/cron/ingest/route.ts` (the `ON CONFLICT (source_url)` upsert is idempotent).
+### Connect a real (live) tender source
+Ingestion is pluggable (`src/lib/tender-feed.ts`). **Set `TENDER_FEED_URL`** to a tender-data
+provider's JSON endpoint (+ `TENDER_FEED_API_KEY` if it needs auth) and the cron pulls **live**
+tenders — no code change. The feed must return an array (or `{items|tenders|data|records:[...]}`)
+of objects with at least `sourceUrl` + `title`; other fields (`source`, `department`,
+`estimatedValue`, `emd`, `submissionDate` or `daysToDeadline`, `requirements[]`) are optional and
+mapped in `feedItemSchema`. When `TENDER_FEED_URL` is unset, ingestion falls back to the built-in
+sample set (`src/lib/sample-tenders.ts`) and the Tenders page shows a "Sample data" banner.
+
+**Getting a real source:** there is no free open API for GeM/CPPP. Options: (1) a paid
+aggregator API (BidAssist / Tender247 / TenderTiger / Vishleshan), (2) data.gov.in / OCDS (free
+API key, limited coverage), or (3) your own crawler that publishes JSON in the shape above. If a
+provider's response shape differs, adjust the mapping in `feedItemSchema` in
+`src/lib/tender-feed.ts`. The `ON CONFLICT (source_url)` upsert makes re-ingestion idempotent.
 
 ### Edit the funnel emails
 `src/lib/email.ts` — `welcomeEmail()` and `matchingTendersEmail()` (subject + HTML). The shared
