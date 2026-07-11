@@ -321,6 +321,18 @@ Ingestion is pluggable (`src/lib/tender-feed.ts`), resolved in this order:
 A configured live source that fails **fails the ingestion job** rather than silently serving
 samples. The `ON CONFLICT (source_url)` upsert makes re-ingestion idempotent.
 
+**Two ways to run the CPPP crawl:**
+- **On Vercel** (simplest): set `TENDER_CRAWL_CPPP=true`; the daily cron crawls the listing. Good
+  for listing-level data (title, org, deadline).
+- **From GitHub Actions** (recommended for resilience + enrichment): the scheduled workflow
+  `.github/workflows/crawl-tenders.yml` runs `scripts/crawl-cppp.ts` on GitHub's clean IPs (every
+  6h), and POSTs into the secured **`POST /api/v1/tenders/ingest`** endpoint (Bearer `CRON_SECRET`).
+  Set repo **secrets** `APP_URL` (`https://www.tendercopilot.in`) and `CRON_SECRET`. With repo
+  **variable** `TENDER_CRAWL_ENRICH=true`, it renders each tender's (JS-only) detail page with
+  Playwright to pull **estimated value, EMD, and a work-description requirement** (best-effort;
+  `extractDetailFields`, unit-tested). When using the Action, leave `TENDER_CRAWL_CPPP` unset on
+  Vercel so the two don't both run.
+
 **Source options:** the CPPP crawler (#2) is the free, direct route and covers a large share of
 Indian government tenders. **GeM** (`gem.gov.in`) is a login-walled JS app and is **not** directly
 crawlable — it needs a paid aggregator (BidAssist / Tender247 / TenderTiger) via `TENDER_FEED_URL`.

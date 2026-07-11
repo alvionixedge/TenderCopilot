@@ -76,6 +76,42 @@ export function parseCpppListing(html: string): NormalizedTender[] {
   return out;
 }
 
+export interface DetailFields {
+  estimatedValue: number | null;
+  emd: number | null;
+  requirements: { requirement: string; mandatory: boolean; category: string | null }[];
+}
+
+/**
+ * Best-effort extraction of value / EMD / a work-description requirement from a
+ * CPPP detail page's **rendered** visible text (the detail page is JS-rendered,
+ * so this runs on text produced by a headless browser in the external crawler).
+ * Returns nulls when a field isn't found — enrichment never blocks ingestion.
+ */
+export function extractDetailFields(text: string): DetailFields {
+  const t = text.replace(/\s+/g, " ");
+  const money = (label: RegExp): number | null => {
+    const m = t.match(label);
+    if (!m) return null;
+    const n = Number(m[1].replace(/[,₹\s]/g, ""));
+    return isNaN(n) || n <= 0 ? null : n;
+  };
+  const estimatedValue = money(
+    /Tender\s*Value[^0-9₹]{0,25}(?:₹|Rs\.?|INR)?\s*([0-9][0-9,]*(?:\.\d+)?)/i,
+  );
+  const emd = money(
+    /EMD(?:\s*(?:Amount|Fee))?[^0-9₹]{0,25}(?:₹|Rs\.?|INR)?\s*([0-9][0-9,]*(?:\.\d+)?)/i,
+  );
+  const requirements: DetailFields["requirements"] = [];
+  const wd = t.match(
+    /Work\s*Description[:\s-]*([^]{8,400}?)(?:\s*(?:Tender Fee|EMD|Bid Details|Critical Date|Payment Mode)|$)/i,
+  );
+  if (wd && wd[1].trim().length > 8) {
+    requirements.push({ requirement: wd[1].trim().slice(0, 500), mandatory: true, category: null });
+  }
+  return { estimatedValue, emd, requirements };
+}
+
 async function fetchPage(page: number): Promise<string> {
   const url = page > 0 ? `${BASE}?page=${page}` : BASE;
   const res = await fetch(url, {

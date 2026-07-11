@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCpppDate, parseCpppListing } from "@/lib/crawlers/cppp";
+import { extractDetailFields, parseCpppDate, parseCpppListing } from "@/lib/crawlers/cppp";
 
 // Fixture mirrors the real eprocure.gov.in "latest active tenders" table:
 // 7 columns, each row linking to a `tendersfullview` detail URL.
@@ -66,5 +66,31 @@ describe("parseCpppListing", () => {
   it("dedupes repeated detail links", () => {
     const rows = parseCpppListing(FIXTURE + FIXTURE);
     expect(rows).toHaveLength(2);
+  });
+});
+
+describe("extractDetailFields (detail-page enrichment)", () => {
+  it("pulls tender value and EMD from rendered text (Indian number format)", () => {
+    const f = extractDetailFields(
+      "Basic Details Tender Value in ₹ 18,50,000 EMD Amount in ₹ 1,85,000 Tender Fee 0",
+    );
+    expect(f.estimatedValue).toBe(1850000);
+    expect(f.emd).toBe(185000);
+  });
+
+  it("extracts a work-description requirement", () => {
+    const f = extractDetailFields(
+      "Work Item Details Work Description : Supply and installation of desktop computers for district offices. Tender Fee Details",
+    );
+    expect(f.requirements).toHaveLength(1);
+    expect(f.requirements[0].requirement).toContain("Supply and installation of desktop");
+    expect(f.requirements[0].mandatory).toBe(true);
+  });
+
+  it("returns nulls/empty when nothing matches", () => {
+    const f = extractDetailFields("Home About Contact — no tender fields here");
+    expect(f.estimatedValue).toBeNull();
+    expect(f.emd).toBeNull();
+    expect(f.requirements).toEqual([]);
   });
 });
