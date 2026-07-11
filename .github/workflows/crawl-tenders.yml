@@ -1,0 +1,36 @@
+# Scheduled external crawler for real CPPP tenders (runs on GitHub's clean IPs,
+# not Vercel). Crawls eprocure.gov.in and POSTs into /api/v1/tenders/ingest.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions → Secrets):
+#   APP_URL      = https://www.tendercopilot.in
+#   CRON_SECRET  = same value as the Vercel CRON_SECRET env var
+# Optional repo variable (…→ Variables):
+#   TENDER_CRAWL_ENRICH = "true"  (renders detail pages with Playwright to pull value/EMD/requirements)
+name: Crawl tenders (CPPP)
+
+on:
+  schedule:
+    - cron: "0 */6 * * *" # every 6 hours (UTC)
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+      - run: npm ci
+      - name: Install Playwright (only if enrichment enabled)
+        if: ${{ vars.TENDER_CRAWL_ENRICH == 'true' }}
+        run: npm i --no-save playwright && npx playwright install --with-deps chromium
+      - name: Crawl CPPP and push to app
+        run: npx tsx scripts/crawl-cppp.ts
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          TENDER_CRAWL_PAGES: "10"
+          TENDER_CRAWL_ENRICH: ${{ vars.TENDER_CRAWL_ENRICH }}
+          TENDER_CRAWL_ENRICH_LIMIT: "25"

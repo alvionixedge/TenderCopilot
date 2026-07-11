@@ -234,7 +234,7 @@ Where to look/change for each feature:
 | **Tender scoring engine** (match / eligibility / win) | `src/lib/scoring.ts` |
 | **AI reasoning & traceability** | `src/lib/ai.ts` (Claude call + `ai_generations` logging) |
 | **Proposal generation** (Claude + template fallback) | `src/lib/proposal.ts`, DOCX render `src/lib/docx.ts` |
-| **Tender ingestion source** | `src/lib/sample-tenders.ts` (curated feed), cron `src/app/api/cron/ingest/route.ts` |
+| **Tender ingestion source** | `src/lib/tender-feed.ts` (live feed via `TENDER_FEED_URL` + sample fallback `src/lib/sample-tenders.ts`), cron `src/app/api/cron/ingest/route.ts` |
 | **Company documents / R2 uploads** | `src/lib/r2.ts`, route `src/app/api/v1/companies/[id]/documents/route.ts` |
 | **Plan limits / usage metering** | `src/lib/entitlements.ts` (`DEFAULT_LIMITS`, `consumeEntitlement`) |
 | **Plans & pricing** | `src/lib/plans.ts` (`PLANS`) + seeded `plan_features` (`scripts/seed.mjs`) |
@@ -303,10 +303,43 @@ Document it in `.env.example` and (if it's a new service) in [§2](#2-services--
 Create/replace the Plan in the Razorpay dashboard → copy the new `plan_…` id → update the env var
 → redeploy. Test-mode and Live-mode plans are separate objects.
 
-### Change the tender source / add real portals
-Today the feed is a curated dataset in `src/lib/sample-tenders.ts`. To add a real portal, produce
-the same `IncomingTender` shape from a crawler/adapter and feed it into the upsert in
-`src/app/api/cron/ingest/route.ts` (the `ON CONFLICT (source_url)` upsert is idempotent).
+### Connect a real (live) tender source
+Ingestion is pluggable (`src/lib/tender-feed.ts`), resolved in this order:
+
+1. **`TENDER_FEED_URL` set** → fetch a provider's JSON feed (+ `TENDER_FEED_API_KEY` if it needs
+   auth). Must return an array (or `{items|tenders|data|records:[...]}`) of objects with at least
+   `sourceUrl` + `title`; other fields (`source`, `department`, `estimatedValue`, `emd`,
+   `submissionDate` or `daysToDeadline`, `requirements[]`) are optional and mapped in
+   `feedItemSchema`. Adjust that schema if a provider's shape differs.
+2. **`TENDER_CRAWL_CPPP=true`** (and no feed URL) → **direct crawler for the Central Public
+   Procurement Portal** (`eprocure.gov.in`), which aggregates central/state/PSU tenders. **Free,
+   no API key** — parses the public "latest active tenders" HTML listing (`src/lib/crawlers/cppp.ts`).
+   `TENDER_CRAWL_PAGES` (default 5) controls how many 10-tender pages to pull per run.
+3. **Neither** → built-in sample set (`src/lib/sample-tenders.ts`); the Tenders page shows a
+   "Sample data" banner.
+
+A configured live source that fails **fails the ingestion job** rather than silently serving
+samples. The `ON CONFLICT (source_url)` upsert makes re-ingestion idempotent.
+
+**Two ways to run the CPPP crawl:**
+- **On Vercel** (simplest): set `TENDER_CRAWL_CPPP=true`; the daily cron crawls the listing. Good
+  for listing-level data (title, org, deadline).
+- **From GitHub Actions** (recommended for resilience + enrichment): the scheduled workflow
+  `.github/workflows/crawl-tenders.yml` runs `scripts/crawl-cppp.ts` on GitHub's clean IPs (every
+  6h), and POSTs into the secured **`POST /api/v1/tenders/ingest`** endpoint (Bearer `CRON_SECRET`).
+  Set repo **secrets** `APP_URL` (`https://www.tendercopilot.in`) and `CRON_SECRET`. With repo
+  **variable** `TENDER_CRAWL_ENRICH=true`, it renders each tender's (JS-only) detail page with
+  Playwright to pull **estimated value, EMD, and a work-description requirement** (best-effort;
+  `extractDetailFields`, unit-tested). When using the Action, leave `TENDER_CRAWL_CPPP` unset on
+  Vercel so the two don't both run.
+
+**Source options:** the CPPP crawler (#2) is the free, direct route and covers a large share of
+Indian government tenders. **GeM** (`gem.gov.in`) is a login-walled JS app and is **not** directly
+crawlable — it needs a paid aggregator (BidAssist / Tender247 / TenderTiger) via `TENDER_FEED_URL`.
+The CPPP crawler parses HTML, so a portal markup change can break it — the parser is isolated in
+`src/lib/crawlers/cppp.ts` and unit-tested (`tests/cppp.test.ts`); for higher resilience, run the
+crawler from a scheduled GitHub Action (clean IP) that POSTs into an ingestion endpoint rather than
+from Vercel serverless.
 
 ### Edit the funnel emails
 `src/lib/email.ts` — `welcomeEmail()` and `matchingTendersEmail()` (subject + HTML). The shared
