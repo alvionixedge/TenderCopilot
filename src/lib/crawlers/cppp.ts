@@ -42,6 +42,20 @@ export function parseCpppDate(s: string): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+const PSU_ORGS =
+  /\b(NTPC|BHEL|GAIL|ONGC|SAIL|NHPC|NHAI|Coal India|BSNL|MTNL|BPCL|HPCL|IOCL|Indian Oil|Power Grid|BEML|HAL|Heavy Water|Nuclear Power|Railway|RITES|IRCON|NMDC|NLC|BHARAT)\b/i;
+const STATE_ORGS =
+  /\b(Karnataka|Maharashtra|Tamil Nadu|Kerala|Gujarat|Rajasthan|Punjab|Haryana|Bihar|Odisha|Telangana|Andhra|Uttar Pradesh|Madhya Pradesh|West Bengal|Zilla|Zila|Panchayat|Nagar|Municipal|Corporation|PWD|Public Works|State)\b/i;
+
+/** Coarse portal-type label from the issuing organisation (all sourced via CPPP). */
+export function classifySource(org: string, title: string): string {
+  const s = `${org} ${title}`;
+  if (/\bGeM\b|Government e[- ]?Marketplace/i.test(s)) return "GeM";
+  if (PSU_ORGS.test(s)) return "PSU";
+  if (STATE_ORGS.test(s)) return "StatePortal";
+  return "CPPP";
+}
+
 /**
  * Pure parser: given the CPPP listing HTML, returns normalized tenders.
  * Columns: Sl.No | e-Published | Bid Submission Closing | Tender Opening |
@@ -64,12 +78,13 @@ export function parseCpppListing(html: string): NormalizedTender[] {
     const clean = (s: string) => s.replace(/\s+/g, " ").trim();
     const title = clean(tds[4].text).slice(0, 500);
     if (!title) continue;
+    const org = clean(tds[5].text);
     seen.add(link);
     out.push({
-      source: "CPPP",
+      source: classifySource(org, title),
       sourceUrl: link,
       title,
-      department: clean(tds[5].text) || null,
+      department: org || null,
       estimatedValue: null, // not shown on the listing; enriched later if needed
       emd: null,
       submissionDate: parseCpppDate(clean(tds[2].text)),

@@ -1,17 +1,17 @@
 import { z } from "zod";
-import { SAMPLE_TENDERS } from "./sample-tenders";
 
 /**
- * Tender ingestion source (spec §2.3, §6.1).
+ * Tender ingestion source (spec §2.3, §6.1) — LIVE DATA ONLY. There is no
+ * sample/demo fallback: every ingested tender comes from a real source.
  *
- * PRODUCTION uses a real live feed: set `TENDER_FEED_URL` to your tender-data
- * provider's JSON endpoint (BidAssist / Tender247 / data.gov.in / your own
- * crawler output, etc.). Ingestion then pulls REAL tenders — no code change.
+ * Resolution:
+ *  - `TENDER_FEED_URL` set  → fetch that provider's JSON feed (paid aggregator
+ *    for GeM / your own crawler / data.gov.in). A fetch/parse failure throws.
+ *  - otherwise              → direct CPPP crawler (eprocure.gov.in), the free
+ *    cross-government source. A crawl failure throws.
  *
- * When `TENDER_FEED_URL` is NOT set, ingestion falls back to a small built-in
- * SAMPLE dataset so dev/demo environments still work. On a configured feed,
- * a fetch/parse failure is surfaced as an error (the ingestion job fails) and
- * we do NOT silently substitute sample data.
+ * A failure fails the ingestion job (leaving existing tenders untouched) — it
+ * never substitutes fake data.
  */
 export interface NormalizedTender {
   source: string; // GeM | CPPP | StatePortal | PSU | <provider label>
@@ -24,14 +24,6 @@ export interface NormalizedTender {
   requirements: { requirement: string; mandatory: boolean; category: string | null }[];
 }
 
-function isTruthy(v: string | undefined): boolean {
-  return v === "1" || v?.toLowerCase() === "true";
-}
-
-/** True when a live source (external feed or direct CPPP crawler) is active. */
-export function isRealFeedConfigured(): boolean {
-  return Boolean(process.env.TENDER_FEED_URL) || isTruthy(process.env.TENDER_CRAWL_CPPP);
-}
 
 // Tolerant schema for a single feed item. Providers differ, so most fields are
 // optional; only a canonical URL and a title are required. A feed item may give
@@ -87,50 +79,23 @@ export const feedItemSchema = z
 
 const MAX_TENDERS = 500;
 
-function sampleAsNormalized(): NormalizedTender[] {
-  return SAMPLE_TENDERS.map((t) => {
-    const submissionDate = new Date();
-    submissionDate.setDate(submissionDate.getDate() + t.daysToDeadline);
-    return {
-      source: t.source,
-      sourceUrl: t.sourceUrl,
-      title: t.title,
-      department: t.department,
-      estimatedValue: t.estimatedValue,
-      emd: t.emd,
-      submissionDate,
-      requirements: t.requirements.map((r) => ({
-        requirement: r.requirement,
-        mandatory: r.mandatory,
-        category: r.category,
-      })),
-    };
-  });
-}
-
 /**
- * Resolves the ingestion source. Returns `{ source: "feed" }` with live data
- * when `TENDER_FEED_URL` is set; **throws** on a feed error (so the ingestion
- * job fails visibly rather than polluting a live DB with sample data). Returns
- * `{ source: "sample" }` only when no feed is configured.
+ * Resolves the LIVE ingestion source. `TENDER_FEED_URL` → provider feed;
+ * otherwise the direct CPPP crawler. Either way real data — a failure throws
+ * (fails the job) and never substitutes samples.
  */
 export async function fetchTenders(): Promise<{
-  source: "feed" | "cppp" | "sample";
+  source: "feed" | "cppp";
   tenders: NormalizedTender[];
 }> {
   const url = process.env.TENDER_FEED_URL;
 
-  // Direct CPPP crawler (free, no key) — real government tenders straight from
-  // eprocure.gov.in. Enabled with TENDER_CRAWL_CPPP=true. A crawl failure
-  // throws (fails the job) rather than falling back to samples.
-  if (!url && isTruthy(process.env.TENDER_CRAWL_CPPP)) {
-    const { crawlCppp } = await import("./crawlers/cppp");
-    const pages = Math.max(1, Math.min(20, Number(process.env.TENDER_CRAWL_PAGES) || 5));
-    return { source: "cppp", tenders: await crawlCppp(pages) };
-  }
-
+  // Default live source: direct CPPP crawler (free, no key) — real central,
+  // state and PSU tenders straight from eprocure.gov.in.
   if (!url) {
-    return { source: "sample", tenders: sampleAsNormalized() };
+    const { crawlCppp } = await import("./crawlers/cppp");
+    const pages = Math.max(1, Math.min(20, Number(process.env.TENDER_CRAWL_PAGES) || 15));
+    return { source: "cppp", tenders: await crawlCppp(pages) };
   }
 
   const headers: Record<string, string> = { accept: "application/json" };
