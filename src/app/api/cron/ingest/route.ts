@@ -2,14 +2,15 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { jobs, tenderRequirements, tenders, tenderVersions } from "@/db/schema";
-import { SAMPLE_TENDERS } from "@/lib/sample-tenders";
+import { fetchTenders } from "@/lib/tender-feed";
 
 export const maxDuration = 60;
 
 /**
  * Scheduled tender ingestion (spec 2.3, 6.1). Invoked by Vercel Cron.
- * Idempotent: UNIQUE(source_url) + upsert means overlapping runs converge.
- * Authorization: Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`.
+ * Pulls from the live feed (`TENDER_FEED_URL`) when configured, otherwise a
+ * built-in sample set. Idempotent: UNIQUE(source_url) + upsert means
+ * overlapping runs converge. Auth: `Authorization: Bearer <CRON_SECRET>`.
  */
 export async function POST(req: Request) {
   return handle(req);
@@ -39,10 +40,11 @@ async function handle(req: Request) {
   let updated = 0;
 
   try {
-    for (const t of SAMPLE_TENDERS) {
-      const submissionDate = new Date();
-      submissionDate.setDate(submissionDate.getDate() + t.daysToDeadline);
+    // Live feed when TENDER_FEED_URL is set; throws on feed failure so we never
+    // silently fall back to sample data on a configured (production) feed.
+    const { source, tenders: incoming } = await fetchTenders();
 
+    for (const t of incoming) {
       const [row] = await d
         .insert(tenders)
         .values({
@@ -50,14 +52,20 @@ async function handle(req: Request) {
           sourceUrl: t.sourceUrl,
           title: t.title,
           department: t.department,
-          estimatedValue: t.estimatedValue.toFixed(2),
-          emd: t.emd.toFixed(2),
-          submissionDate,
+          estimatedValue: t.estimatedValue != null ? t.estimatedValue.toFixed(2) : null,
+          emd: t.emd != null ? t.emd.toFixed(2) : null,
+          submissionDate: t.submissionDate,
           status: "open",
         })
         .onConflictDoUpdate({
           target: tenders.sourceUrl,
-          set: { title: t.title, department: t.department },
+          set: {
+            title: t.title,
+            department: t.department,
+            estimatedValue: t.estimatedValue != null ? t.estimatedValue.toFixed(2) : null,
+            emd: t.emd != null ? t.emd.toFixed(2) : null,
+            submissionDate: t.submissionDate,
+          },
         })
         .returning({ id: tenders.id, createdAt: tenders.createdAt });
 
@@ -71,26 +79,28 @@ async function handle(req: Request) {
             version: 1,
             changeType: "original",
             impactClass: "scope",
-            submissionDate,
+            submissionDate: t.submissionDate,
             publishedAt: new Date(),
           })
           .onConflictDoNothing();
 
-        const existingReqs = await d
-          .select({ id: tenderRequirements.id })
-          .from(tenderRequirements)
-          .where(eq(tenderRequirements.tenderId, row.id))
-          .limit(1);
-        if (existingReqs.length === 0) {
-          await d.insert(tenderRequirements).values(
-            t.requirements.map((r) => ({
-              tenderId: row.id,
-              tenderVersion: 1,
-              requirement: r.requirement,
-              mandatory: r.mandatory,
-              category: r.category,
-            })),
-          );
+        if (t.requirements.length > 0) {
+          const existingReqs = await d
+            .select({ id: tenderRequirements.id })
+            .from(tenderRequirements)
+            .where(eq(tenderRequirements.tenderId, row.id))
+            .limit(1);
+          if (existingReqs.length === 0) {
+            await d.insert(tenderRequirements).values(
+              t.requirements.map((r) => ({
+                tenderId: row.id,
+                tenderVersion: 1,
+                requirement: r.requirement,
+                mandatory: r.mandatory,
+                category: r.category,
+              })),
+            );
+          }
         }
       } else {
         updated++;
@@ -99,10 +109,10 @@ async function handle(req: Request) {
 
     await d
       .update(jobs)
-      .set({ status: "succeeded", updatedAt: new Date() })
+      .set({ status: "succeeded", payload: { source }, updatedAt: new Date() })
       .where(eq(jobs.id, job.id));
 
-    return NextResponse.json({ ok: true, inserted, updated });
+    return NextResponse.json({ ok: true, source, inserted, updated });
   } catch (err) {
     await d
       .update(jobs)
