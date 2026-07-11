@@ -303,23 +303,26 @@ Document it in `.env.example` and (if it's a new service) in [§2](#2-services--
 Create/replace the Plan in the Razorpay dashboard → copy the new `plan_…` id → update the env var
 → redeploy. Test-mode and Live-mode plans are separate objects.
 
-### Connect a real (live) tender source
-Ingestion is pluggable (`src/lib/tender-feed.ts`), resolved in this order:
+### Live tender source (no samples)
+Ingestion is **live-data-only** — there is no sample/demo fallback. Resolved in
+`src/lib/tender-feed.ts`:
 
 1. **`TENDER_FEED_URL` set** → fetch a provider's JSON feed (+ `TENDER_FEED_API_KEY` if it needs
    auth). Must return an array (or `{items|tenders|data|records:[...]}`) of objects with at least
    `sourceUrl` + `title`; other fields (`source`, `department`, `estimatedValue`, `emd`,
    `submissionDate` or `daysToDeadline`, `requirements[]`) are optional and mapped in
    `feedItemSchema`. Adjust that schema if a provider's shape differs.
-2. **`TENDER_CRAWL_CPPP=true`** (and no feed URL) → **direct crawler for the Central Public
-   Procurement Portal** (`eprocure.gov.in`), which aggregates central/state/PSU tenders. **Free,
-   no API key** — parses the public "latest active tenders" HTML listing (`src/lib/crawlers/cppp.ts`).
-   `TENDER_CRAWL_PAGES` (default 5) controls how many 10-tender pages to pull per run.
-3. **Neither** → built-in sample set (`src/lib/sample-tenders.ts`); the Tenders page shows a
-   "Sample data" banner.
+2. **Default (no feed URL)** → **direct crawler for the Central Public Procurement Portal**
+   (`eprocure.gov.in`) — **free, no API key** — parsing the public listings
+   (`src/lib/crawlers/cppp.ts`). `TENDER_CRAWL_PAGES` (default 15) controls crawl depth. Each
+   tender is labelled by portal type (GeM / PSU / StatePortal / CPPP) via `classifySource`.
 
-A configured live source that fails **fails the ingestion job** rather than silently serving
-samples. The `ON CONFLICT (source_url)` upsert makes re-ingestion idempotent.
+A source that fails **fails the ingestion job** (existing tenders are left untouched) — it never
+substitutes fake data. The `ON CONFLICT (source_url)` upsert makes re-ingestion idempotent.
+
+**Purging old sample rows:** if a database was seeded with the old sample set before live
+ingestion, remove them once with `DATABASE_URL="…(direct)…" npm run db:purge-samples` (deletes only
+the 10 known sample URLs + dependents; real tenders are untouched).
 
 **Two ways to run the CPPP crawl:**
 - **On Vercel** (simplest): set `TENDER_CRAWL_CPPP=true`; the daily cron crawls the listing. Good
@@ -333,8 +336,14 @@ samples. The `ON CONFLICT (source_url)` upsert makes re-ingestion idempotent.
   `extractDetailFields`, unit-tested). When using the Action, leave `TENDER_CRAWL_CPPP` unset on
   Vercel so the two don't both run.
 
-**Source options:** the CPPP crawler (#2) is the free, direct route and covers a large share of
-Indian government tenders. **GeM** (`gem.gov.in`) is a login-walled JS app and is **not** directly
+**Coverage:** CPPP is a **cross-government aggregator** — its feed already includes central
+ministries, **state** tenders (Karnataka, Maharashtra, …) and **PSUs** (NTPC, GAIL, ONGC, BHEL,
+Heavy Water Board, Railways, …), so you generally do **not** need separate crawlers per portal
+(more `TENDER_CRAWL_PAGES` = more coverage across all of them). The crawler pulls the main
+`latestactivetendersnew` listing plus the `highvaluetenders` and `globaltenders` listings. The
+individual state/PSU portals (`tenders.karnataka.gov.in`, `mahatenders.gov.in`, `etenders.bhel.in`,
+`tenders.ntpc.co.in`) are separate NIC/CAPTCHA systems that block automated access and are largely
+redundant with CPPP. **GeM** (`gem.gov.in`) is a login-walled JS app and is **not** directly
 crawlable — it needs a paid aggregator (BidAssist / Tender247 / TenderTiger) via `TENDER_FEED_URL`.
 The CPPP crawler parses HTML, so a portal markup change can break it — the parser is isolated in
 `src/lib/crawlers/cppp.ts` and unit-tested (`tests/cppp.test.ts`); for higher resilience, run the
