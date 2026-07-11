@@ -11,7 +11,10 @@ import type { NormalizedTender } from "../tender-feed";
  * Fragility note: this parses HTML, so a markup change on eprocure.gov.in can
  * break it — `parseCpppListing` is isolated and unit-tested for that reason.
  */
-const BASE = "https://eprocure.gov.in/cppp/latestactivetendersnew/cpppdata";
+const ROOT = "https://eprocure.gov.in/cppp";
+// CPPP sibling listings that share the same parseable table. `latestactivetendersnew`
+// is the main feed (central + state + PSU); high-value and global add coverage.
+const LISTINGS = ["latestactivetendersnew", "highvaluetenders", "globaltenders"];
 const UA =
   "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
@@ -39,6 +42,20 @@ export function parseCpppDate(s: string): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+const PSU_ORGS =
+  /\b(NTPC|BHEL|GAIL|ONGC|SAIL|NHPC|NHAI|Coal India|BSNL|MTNL|BPCL|HPCL|IOCL|Indian Oil|Power Grid|BEML|HAL|Heavy Water|Nuclear Power|Railway|RITES|IRCON|NMDC|NLC|BHARAT)\b/i;
+const STATE_ORGS =
+  /\b(Karnataka|Maharashtra|Tamil Nadu|Kerala|Gujarat|Rajasthan|Punjab|Haryana|Bihar|Odisha|Telangana|Andhra|Uttar Pradesh|Madhya Pradesh|West Bengal|Zilla|Zila|Panchayat|Nagar|Municipal|Corporation|PWD|Public Works|State)\b/i;
+
+/** Coarse portal-type label from the issuing organisation (all sourced via CPPP). */
+export function classifySource(org: string, title: string): string {
+  const s = `${org} ${title}`;
+  if (/\bGeM\b|Government e[- ]?Marketplace/i.test(s)) return "GeM";
+  if (PSU_ORGS.test(s)) return "PSU";
+  if (STATE_ORGS.test(s)) return "StatePortal";
+  return "CPPP";
+}
+
 /**
  * Pure parser: given the CPPP listing HTML, returns normalized tenders.
  * Columns: Sl.No | e-Published | Bid Submission Closing | Tender Opening |
@@ -61,12 +78,13 @@ export function parseCpppListing(html: string): NormalizedTender[] {
     const clean = (s: string) => s.replace(/\s+/g, " ").trim();
     const title = clean(tds[4].text).slice(0, 500);
     if (!title) continue;
+    const org = clean(tds[5].text);
     seen.add(link);
     out.push({
-      source: "CPPP",
+      source: classifySource(org, title),
       sourceUrl: link,
       title,
-      department: clean(tds[5].text) || null,
+      department: org || null,
       estimatedValue: null, // not shown on the listing; enriched later if needed
       emd: null,
       submissionDate: parseCpppDate(clean(tds[2].text)),
@@ -112,40 +130,48 @@ export function extractDetailFields(text: string): DetailFields {
   return { estimatedValue, emd, requirements };
 }
 
-async function fetchPage(page: number): Promise<string> {
-  const url = page > 0 ? `${BASE}?page=${page}` : BASE;
+async function fetchListingPage(listing: string, page: number): Promise<string> {
+  const base = `${ROOT}/${listing}/cpppdata`;
+  const url = page > 0 ? `${base}?page=${page}` : base;
   const res = await fetch(url, {
     headers: { "user-agent": UA, accept: "text/html,application/xhtml+xml" },
     signal: AbortSignal.timeout(20000),
   });
-  if (!res.ok) throw new Error(`CPPP page ${page} responded ${res.status} ${res.statusText}`);
+  if (!res.ok) throw new Error(`CPPP ${listing} p${page} responded ${res.status} ${res.statusText}`);
   return res.text();
 }
 
 /**
- * Crawls the first `maxPages` pages (10 tenders each) of the CPPP latest-active
- * listing. Throws if the first page fails or nothing parses (so the ingestion
- * job fails visibly rather than silently ingesting nothing).
+ * Crawls CPPP (central + state + PSU aggregator): `maxPages` of the main
+ * latest-active listing plus a couple of pages each of the high-value and
+ * global listings, deduped by detail URL. Throws only if the main listing's
+ * first page fails or nothing parses at all (so the job fails visibly).
  */
 export async function crawlCppp(maxPages = 5): Promise<NormalizedTender[]> {
   const all: NormalizedTender[] = [];
   const seen = new Set<string>();
-  for (let p = 0; p < maxPages; p++) {
-    let rows: NormalizedTender[];
-    try {
-      rows = parseCpppListing(await fetchPage(p));
-    } catch (err) {
-      if (p === 0) throw err; // first page must work
-      break; // later-page hiccup: keep what we have
-    }
-    if (rows.length === 0) break;
-    for (const r of rows) {
-      if (!seen.has(r.sourceUrl)) {
-        seen.add(r.sourceUrl);
-        all.push(r);
+
+  for (const listing of LISTINGS) {
+    const isMain = listing === "latestactivetendersnew";
+    const pages = isMain ? maxPages : Math.min(2, maxPages);
+    for (let p = 0; p < pages; p++) {
+      let rows: NormalizedTender[];
+      try {
+        rows = parseCpppListing(await fetchListingPage(listing, p));
+      } catch (err) {
+        if (isMain && p === 0) throw err; // the main listing's first page must work
+        break; // a sibling/later-page hiccup: keep what we have
+      }
+      if (rows.length === 0) break;
+      for (const r of rows) {
+        if (!seen.has(r.sourceUrl)) {
+          seen.add(r.sourceUrl);
+          all.push(r);
+        }
       }
     }
   }
+
   if (all.length === 0) {
     throw new Error("CPPP crawl parsed no tenders — the portal markup may have changed.");
   }

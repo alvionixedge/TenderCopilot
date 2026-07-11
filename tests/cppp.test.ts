@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { extractDetailFields, parseCpppDate, parseCpppListing } from "@/lib/crawlers/cppp";
+import {
+  classifySource,
+  extractDetailFields,
+  parseCpppDate,
+  parseCpppListing,
+} from "@/lib/crawlers/cppp";
 
 // Fixture mirrors the real eprocure.gov.in "latest active tenders" table:
 // 7 columns, each row linking to a `tendersfullview` detail URL.
@@ -66,6 +71,23 @@ describe("parseCpppListing", () => {
   it("dedupes repeated detail links", () => {
     const rows = parseCpppListing(FIXTURE + FIXTURE);
     expect(rows).toHaveLength(2);
+  });
+});
+
+describe("classifySource (portal-type label)", () => {
+  it("labels PSUs", () => {
+    expect(classifySource("NTPC Limited", "Supply of pumps")).toBe("PSU");
+    expect(classifySource("Heavy Water Board", "Resin")).toBe("PSU");
+  });
+  it("labels state / municipal bodies", () => {
+    expect(classifySource("Karnataka Public Works Department", "Road work")).toBe("StatePortal");
+    expect(classifySource("Zilla Parishad Pune", "Anganwadi")).toBe("StatePortal");
+  });
+  it("labels GeM", () => {
+    expect(classifySource("Some Dept", "Procurement via GeM")).toBe("GeM");
+  });
+  it("defaults to CPPP for central bodies", () => {
+    expect(classifySource("Directorate of Printing", "Stationery rate contract")).toBe("CPPP");
   });
 });
 
