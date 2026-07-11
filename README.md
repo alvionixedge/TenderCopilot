@@ -304,19 +304,30 @@ Create/replace the Plan in the Razorpay dashboard → copy the new `plan_…` id
 → redeploy. Test-mode and Live-mode plans are separate objects.
 
 ### Connect a real (live) tender source
-Ingestion is pluggable (`src/lib/tender-feed.ts`). **Set `TENDER_FEED_URL`** to a tender-data
-provider's JSON endpoint (+ `TENDER_FEED_API_KEY` if it needs auth) and the cron pulls **live**
-tenders — no code change. The feed must return an array (or `{items|tenders|data|records:[...]}`)
-of objects with at least `sourceUrl` + `title`; other fields (`source`, `department`,
-`estimatedValue`, `emd`, `submissionDate` or `daysToDeadline`, `requirements[]`) are optional and
-mapped in `feedItemSchema`. When `TENDER_FEED_URL` is unset, ingestion falls back to the built-in
-sample set (`src/lib/sample-tenders.ts`) and the Tenders page shows a "Sample data" banner.
+Ingestion is pluggable (`src/lib/tender-feed.ts`), resolved in this order:
 
-**Getting a real source:** there is no free open API for GeM/CPPP. Options: (1) a paid
-aggregator API (BidAssist / Tender247 / TenderTiger / Vishleshan), (2) data.gov.in / OCDS (free
-API key, limited coverage), or (3) your own crawler that publishes JSON in the shape above. If a
-provider's response shape differs, adjust the mapping in `feedItemSchema` in
-`src/lib/tender-feed.ts`. The `ON CONFLICT (source_url)` upsert makes re-ingestion idempotent.
+1. **`TENDER_FEED_URL` set** → fetch a provider's JSON feed (+ `TENDER_FEED_API_KEY` if it needs
+   auth). Must return an array (or `{items|tenders|data|records:[...]}`) of objects with at least
+   `sourceUrl` + `title`; other fields (`source`, `department`, `estimatedValue`, `emd`,
+   `submissionDate` or `daysToDeadline`, `requirements[]`) are optional and mapped in
+   `feedItemSchema`. Adjust that schema if a provider's shape differs.
+2. **`TENDER_CRAWL_CPPP=true`** (and no feed URL) → **direct crawler for the Central Public
+   Procurement Portal** (`eprocure.gov.in`), which aggregates central/state/PSU tenders. **Free,
+   no API key** — parses the public "latest active tenders" HTML listing (`src/lib/crawlers/cppp.ts`).
+   `TENDER_CRAWL_PAGES` (default 5) controls how many 10-tender pages to pull per run.
+3. **Neither** → built-in sample set (`src/lib/sample-tenders.ts`); the Tenders page shows a
+   "Sample data" banner.
+
+A configured live source that fails **fails the ingestion job** rather than silently serving
+samples. The `ON CONFLICT (source_url)` upsert makes re-ingestion idempotent.
+
+**Source options:** the CPPP crawler (#2) is the free, direct route and covers a large share of
+Indian government tenders. **GeM** (`gem.gov.in`) is a login-walled JS app and is **not** directly
+crawlable — it needs a paid aggregator (BidAssist / Tender247 / TenderTiger) via `TENDER_FEED_URL`.
+The CPPP crawler parses HTML, so a portal markup change can break it — the parser is isolated in
+`src/lib/crawlers/cppp.ts` and unit-tested (`tests/cppp.test.ts`); for higher resilience, run the
+crawler from a scheduled GitHub Action (clean IP) that POSTs into an ingestion endpoint rather than
+from Vercel serverless.
 
 ### Edit the funnel emails
 `src/lib/email.ts` — `welcomeEmail()` and `matchingTendersEmail()` (subject + HTML). The shared

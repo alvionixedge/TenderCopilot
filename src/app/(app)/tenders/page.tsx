@@ -81,10 +81,11 @@ export default async function TendersPage() {
 
       {!isRealFeedConfigured() && (
         <div className="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
-          <strong>Sample data.</strong> A live tender feed isn&apos;t connected yet, so these are
-          illustrative examples. Set <code className="font-mono text-xs">TENDER_FEED_URL</code> to
-          your tender-data provider to show real tenders (see README → Making common changes →
-          &ldquo;add a tender source&rdquo;).
+          <strong>Sample data.</strong> A live tender source isn&apos;t enabled yet, so these are
+          illustrative examples. Set <code className="font-mono text-xs">TENDER_CRAWL_CPPP=true</code>{" "}
+          to pull real government tenders directly from eprocure.gov.in (free, no key), or{" "}
+          <code className="font-mono text-xs">TENDER_FEED_URL</code> for a provider feed — then run
+          the ingestion cron.
         </div>
       )}
 
