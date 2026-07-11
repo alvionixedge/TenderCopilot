@@ -24,8 +24,13 @@ export interface NormalizedTender {
   requirements: { requirement: string; mandatory: boolean; category: string | null }[];
 }
 
+function isTruthy(v: string | undefined): boolean {
+  return v === "1" || v?.toLowerCase() === "true";
+}
+
+/** True when a live source (external feed or direct CPPP crawler) is active. */
 export function isRealFeedConfigured(): boolean {
-  return Boolean(process.env.TENDER_FEED_URL);
+  return Boolean(process.env.TENDER_FEED_URL) || isTruthy(process.env.TENDER_CRAWL_CPPP);
 }
 
 // Tolerant schema for a single feed item. Providers differ, so most fields are
@@ -110,10 +115,20 @@ function sampleAsNormalized(): NormalizedTender[] {
  * `{ source: "sample" }` only when no feed is configured.
  */
 export async function fetchTenders(): Promise<{
-  source: "feed" | "sample";
+  source: "feed" | "cppp" | "sample";
   tenders: NormalizedTender[];
 }> {
   const url = process.env.TENDER_FEED_URL;
+
+  // Direct CPPP crawler (free, no key) — real government tenders straight from
+  // eprocure.gov.in. Enabled with TENDER_CRAWL_CPPP=true. A crawl failure
+  // throws (fails the job) rather than falling back to samples.
+  if (!url && isTruthy(process.env.TENDER_CRAWL_CPPP)) {
+    const { crawlCppp } = await import("./crawlers/cppp");
+    const pages = Math.max(1, Math.min(20, Number(process.env.TENDER_CRAWL_PAGES) || 5));
+    return { source: "cppp", tenders: await crawlCppp(pages) };
+  }
+
   if (!url) {
     return { source: "sample", tenders: sampleAsNormalized() };
   }
