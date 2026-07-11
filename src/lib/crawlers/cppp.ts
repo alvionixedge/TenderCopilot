@@ -11,7 +11,10 @@ import type { NormalizedTender } from "../tender-feed";
  * Fragility note: this parses HTML, so a markup change on eprocure.gov.in can
  * break it — `parseCpppListing` is isolated and unit-tested for that reason.
  */
-const BASE = "https://eprocure.gov.in/cppp/latestactivetendersnew/cpppdata";
+const ROOT = "https://eprocure.gov.in/cppp";
+// CPPP sibling listings that share the same parseable table. `latestactivetendersnew`
+// is the main feed (central + state + PSU); high-value and global add coverage.
+const LISTINGS = ["latestactivetendersnew", "highvaluetenders", "globaltenders"];
 const UA =
   "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
@@ -112,40 +115,48 @@ export function extractDetailFields(text: string): DetailFields {
   return { estimatedValue, emd, requirements };
 }
 
-async function fetchPage(page: number): Promise<string> {
-  const url = page > 0 ? `${BASE}?page=${page}` : BASE;
+async function fetchListingPage(listing: string, page: number): Promise<string> {
+  const base = `${ROOT}/${listing}/cpppdata`;
+  const url = page > 0 ? `${base}?page=${page}` : base;
   const res = await fetch(url, {
     headers: { "user-agent": UA, accept: "text/html,application/xhtml+xml" },
     signal: AbortSignal.timeout(20000),
   });
-  if (!res.ok) throw new Error(`CPPP page ${page} responded ${res.status} ${res.statusText}`);
+  if (!res.ok) throw new Error(`CPPP ${listing} p${page} responded ${res.status} ${res.statusText}`);
   return res.text();
 }
 
 /**
- * Crawls the first `maxPages` pages (10 tenders each) of the CPPP latest-active
- * listing. Throws if the first page fails or nothing parses (so the ingestion
- * job fails visibly rather than silently ingesting nothing).
+ * Crawls CPPP (central + state + PSU aggregator): `maxPages` of the main
+ * latest-active listing plus a couple of pages each of the high-value and
+ * global listings, deduped by detail URL. Throws only if the main listing's
+ * first page fails or nothing parses at all (so the job fails visibly).
  */
 export async function crawlCppp(maxPages = 5): Promise<NormalizedTender[]> {
   const all: NormalizedTender[] = [];
   const seen = new Set<string>();
-  for (let p = 0; p < maxPages; p++) {
-    let rows: NormalizedTender[];
-    try {
-      rows = parseCpppListing(await fetchPage(p));
-    } catch (err) {
-      if (p === 0) throw err; // first page must work
-      break; // later-page hiccup: keep what we have
-    }
-    if (rows.length === 0) break;
-    for (const r of rows) {
-      if (!seen.has(r.sourceUrl)) {
-        seen.add(r.sourceUrl);
-        all.push(r);
+
+  for (const listing of LISTINGS) {
+    const isMain = listing === "latestactivetendersnew";
+    const pages = isMain ? maxPages : Math.min(2, maxPages);
+    for (let p = 0; p < pages; p++) {
+      let rows: NormalizedTender[];
+      try {
+        rows = parseCpppListing(await fetchListingPage(listing, p));
+      } catch (err) {
+        if (isMain && p === 0) throw err; // the main listing's first page must work
+        break; // a sibling/later-page hiccup: keep what we have
+      }
+      if (rows.length === 0) break;
+      for (const r of rows) {
+        if (!seen.has(r.sourceUrl)) {
+          seen.add(r.sourceUrl);
+          all.push(r);
+        }
       }
     }
   }
+
   if (all.length === 0) {
     throw new Error("CPPP crawl parsed no tenders — the portal markup may have changed.");
   }

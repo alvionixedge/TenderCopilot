@@ -333,8 +333,14 @@ samples. The `ON CONFLICT (source_url)` upsert makes re-ingestion idempotent.
   `extractDetailFields`, unit-tested). When using the Action, leave `TENDER_CRAWL_CPPP` unset on
   Vercel so the two don't both run.
 
-**Source options:** the CPPP crawler (#2) is the free, direct route and covers a large share of
-Indian government tenders. **GeM** (`gem.gov.in`) is a login-walled JS app and is **not** directly
+**Coverage:** CPPP is a **cross-government aggregator** — its feed already includes central
+ministries, **state** tenders (Karnataka, Maharashtra, …) and **PSUs** (NTPC, GAIL, ONGC, BHEL,
+Heavy Water Board, Railways, …), so you generally do **not** need separate crawlers per portal
+(more `TENDER_CRAWL_PAGES` = more coverage across all of them). The crawler pulls the main
+`latestactivetendersnew` listing plus the `highvaluetenders` and `globaltenders` listings. The
+individual state/PSU portals (`tenders.karnataka.gov.in`, `mahatenders.gov.in`, `etenders.bhel.in`,
+`tenders.ntpc.co.in`) are separate NIC/CAPTCHA systems that block automated access and are largely
+redundant with CPPP. **GeM** (`gem.gov.in`) is a login-walled JS app and is **not** directly
 crawlable — it needs a paid aggregator (BidAssist / Tender247 / TenderTiger) via `TENDER_FEED_URL`.
 The CPPP crawler parses HTML, so a portal markup change can break it — the parser is isolated in
 `src/lib/crawlers/cppp.ts` and unit-tested (`tests/cppp.test.ts`); for higher resilience, run the
