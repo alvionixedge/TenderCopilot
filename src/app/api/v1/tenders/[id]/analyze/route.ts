@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { tenderMatches, tenderRequirements, tenders } from "@/db/schema";
+import { aiScoreTender } from "@/lib/ai-scoring";
 import { ApiError, requireSession, withErrorHandling } from "@/lib/api";
-import { generateWithTrace, isAiConfigured } from "@/lib/ai";
+import { isAiConfigured } from "@/lib/ai";
 import { recordAudit } from "@/lib/audit";
 import { enforceAiRateLimit } from "@/lib/ratelimit";
 import { scoreTender } from "@/lib/scoring";
@@ -42,44 +43,45 @@ export const POST = withErrorHandling(
         ),
       );
 
-    const result = scoreTender(
-      {
-        description: company.description,
-        annualTurnover: company.annualTurnover,
-        gstNumber: company.gstNumber,
-        msmeNumber: company.msmeNumber,
-        employeeCount: company.employeeCount,
-      },
-      {
-        title: tender.title,
-        department: tender.department,
-        estimatedValue: tender.estimatedValue,
-        emd: tender.emd,
-        requirements: requirements.map((r) => ({
-          requirement: r.requirement,
-          mandatory: r.mandatory,
-        })),
-      },
-    );
+    const companyInput = {
+      description: company.description,
+      annualTurnover: company.annualTurnover,
+      gstNumber: company.gstNumber,
+      msmeNumber: company.msmeNumber,
+      employeeCount: company.employeeCount,
+    };
+    const tenderInput = {
+      title: tender.title,
+      department: tender.department,
+      estimatedValue: tender.estimatedValue,
+      emd: tender.emd,
+      requirements: requirements.map((r) => ({
+        requirement: r.requirement,
+        mandatory: r.mandatory,
+      })),
+    };
 
+    // Deterministic heuristic is always computed — it is the fallback when AI
+    // is unconfigured or errors, so the feature never hard-fails.
+    let result = scoreTender(companyInput, tenderInput);
     let reasoning = result.reasons.map((r) => `• ${r}`).join("\n");
     let aiTraceId: string | null = null;
 
     if (isAiConfigured()) {
       try {
-        const ai = await generateWithTrace({
-          orgId: ctx.orgId,
-          purpose: "score",
-          systemPrompt:
-            "You are a bid-qualification analyst for Indian government tenders. Given heuristic scores and tender requirements, produce a crisp 3-5 sentence assessment of fit, key risks, and what to verify before bidding. Plain text only.",
-          userPrompt: `Tender: ${tender.title}\nDepartment: ${tender.department ?? "n/a"}\nEstimated value: INR ${tender.estimatedValue ?? "n/a"}\nHeuristic scores — match: ${result.matchScore}, eligibility: ${result.eligibilityScore}, win probability: ${result.winProbability}.\nHeuristic notes:\n${result.reasons.join("\n")}\nCompany profile summary: ${company.description?.slice(0, 1500) ?? "n/a"}`,
-          fencedData: requirements.map((r) => `- ${r.requirement}`).join("\n"),
-          maxTokens: 1000,
-        });
-        reasoning = ai.text;
-        aiTraceId = ai.traceId;
+        // AI reads the capability statement against the requirements and sets
+        // the actual scores (capability-aware), not just the prose.
+        const ai = await aiScoreTender(ctx.orgId, companyInput, tenderInput);
+        result = {
+          matchScore: ai.matchScore,
+          eligibilityScore: ai.eligibilityScore,
+          winProbability: ai.winProbability,
+          reasons: ai.reasons,
+        };
+        reasoning = ai.reasoning;
+        aiTraceId = ai.aiTraceId;
       } catch (err) {
-        console.error("[analyze] AI reasoning failed, using heuristic notes", err);
+        console.error("[analyze] AI scoring failed, using heuristic scores", err);
       }
     }
 
