@@ -48,31 +48,54 @@ async function main() {
     console.log(`Enriched ${done}/${Math.min(enrichLimit, tenders.length)} detail pages.`);
   }
 
-  const payload = {
-    source: "cppp",
-    tenders: tenders.map((t) => ({
-      source: t.source,
-      sourceUrl: t.sourceUrl,
-      title: t.title,
-      department: t.department,
-      estimatedValue: t.estimatedValue,
-      emd: t.emd,
-      submissionDate: t.submissionDate ? t.submissionDate.toISOString() : null,
-      requirements: t.requirements,
-    })),
-  };
+  const items = tenders.map((t) => ({
+    source: t.source,
+    sourceUrl: t.sourceUrl,
+    title: t.title,
+    department: t.department,
+    estimatedValue: t.estimatedValue,
+    emd: t.emd,
+    submissionDate: t.submissionDate ? t.submissionDate.toISOString() : null,
+    requirements: t.requirements,
+  }));
 
-  const res = await fetch(`${APP_URL.replace(/\/$/, "")}/api/v1/tenders/ingest`, {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${CRON_SECRET}` },
-    body: JSON.stringify(payload),
-  });
-  const body = await res.text();
-  if (!res.ok) {
-    console.error(`Ingest failed (${res.status}): ${body}`);
-    process.exit(1);
+  // Push in small batches. Each new tender costs several sequential DB
+  // round-trips (upsert + version + requirements), so a single 130+ item
+  // request blows past the ingest endpoint's 60s serverless limit (a 504).
+  // ~25 per request keeps each call to a few seconds regardless of Vercel plan.
+  const BATCH_SIZE = 25;
+  const endpoint = `${APP_URL.replace(/\/$/, "")}/api/v1/tenders/ingest`;
+  const batches = Math.ceil(items.length / BATCH_SIZE);
+  let inserted = 0;
+  let updated = 0;
+  let failures = 0;
+
+  for (let i = 0; i < items.length; i += BATCH_SIZE) {
+    const batch = items.slice(i, i + BATCH_SIZE);
+    const n = i / BATCH_SIZE + 1;
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${CRON_SECRET}` },
+      body: JSON.stringify({ source: "cppp", tenders: batch }),
+    });
+    const body = await res.text();
+    if (!res.ok) {
+      console.error(`  batch ${n}/${batches} failed (${res.status}): ${body.slice(0, 200)}`);
+      failures++;
+      continue;
+    }
+    try {
+      const parsed = JSON.parse(body) as { inserted?: number; updated?: number };
+      inserted += parsed.inserted ?? 0;
+      updated += parsed.updated ?? 0;
+    } catch {
+      /* non-JSON success body — ignore */
+    }
+    console.log(`  batch ${n}/${batches} OK (${batch.length} tenders)`);
   }
-  console.log(`Ingest OK: ${body}`);
+
+  console.log(`Ingest complete: inserted ${inserted}, updated ${updated}, failed batches ${failures}/${batches}.`);
+  if (failures > 0) process.exit(1);
 }
 
 main().catch((e) => {
