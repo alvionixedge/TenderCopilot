@@ -19,7 +19,7 @@ const features = [
   {
     icon: Gauge,
     title: "Match & eligibility scoring",
-    body: "Every tender is scored against your company profile: semantic fit, hard eligibility criteria, and an estimated win probability.",
+    body: "Every tender is scored against your company profile: capability fit, hard eligibility criteria, and an estimated win probability.",
   },
   {
     icon: Sparkles,
@@ -44,7 +44,7 @@ const features = [
 ];
 
 const steps = [
-  { n: "1", t: "Sign in with Google or Microsoft", b: "No passwords to manage. Your organization is provisioned on first sign-in." },
+  { n: "1", t: "Sign in with Google or email", b: "Your organization is provisioned automatically on first sign-in." },
   { n: "2", t: "Build your company profile", b: "GSTIN, PAN, MSME, turnover and capability statement — the basis for every score." },
   { n: "3", t: "Review your ranked tender feed", b: "Match, eligibility and win-probability scores with AI reasoning per tender." },
   { n: "4", t: "Generate & submit proposals", b: "Compliance-structured DOCX proposals, tracked through your bid pipeline." },
