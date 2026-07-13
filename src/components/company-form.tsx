@@ -110,6 +110,12 @@ export function CompanyForm({
             className={field}
             placeholder="We are an IT services company specialising in web portals, cloud migration and AMC contracts for government departments…"
           />
+          <p className="mt-1.5 rounded-lg bg-brand-50 px-3 py-2 text-xs leading-5 text-brand-800">
+            💡 <strong>The more detail here, the better your tender matches.</strong> The feed is
+            filtered on this text, so list your services, technologies, sectors, certifications
+            (ISO, CMMI) and contract types (AMC, supply, turnkey). A one-line statement matches
+            far fewer tenders than a thorough one.
+          </p>
         </label>
       </div>
       {error && <p className="text-sm text-rose-600">{error}</p>}
