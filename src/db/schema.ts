@@ -142,7 +142,7 @@ export const companyDocuments = pgTable("company_documents", {
 // ---------------------------------------------------------------------------
 export const tenders = pgTable("tenders", {
   id: uuid("id").primaryKey().defaultRandom(),
-  source: varchar("source", { length: 40 }).notNull(), // GeM | CPPP | StatePortal | PSU
+  source: varchar("source", { length: 40 }).notNull(), // CPPP | StatePortal | PSU | <provider label>
   sourceUrl: text("source_url").notNull().unique(), // exact-dedupe key
   contentHash: varchar("content_hash", { length: 64 }),
   canonicalGroupId: uuid("canonical_group_id"),
