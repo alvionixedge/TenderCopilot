@@ -14,7 +14,7 @@ const features = [
   {
     icon: Radar,
     title: "Tender discovery",
-    body: "Tenders from GeM, CPPP, state portals and PSUs land in one ranked feed — deduplicated, versioned, and refreshed on schedule.",
+    body: "Tenders from CPPP, state portals and PSUs land in one ranked feed — deduplicated, versioned, and refreshed on schedule.",
   },
   {
     icon: Gauge,
@@ -143,7 +143,7 @@ export default function LandingPage() {
           </div>
           <div className="mx-auto mt-14 grid max-w-3xl grid-cols-3 gap-4 text-center">
             {[
-              ["GeM · CPPP · PSU", "portals covered"],
+              ["CPPP · State · PSU", "portals covered"],
               ["< 60 sec", "to a draft proposal"],
               ["0 → 100", "eligibility scoring"],
             ].map(([big, small]) => (

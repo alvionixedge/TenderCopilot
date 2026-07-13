@@ -12,7 +12,7 @@ export const metadata = {
 const trust = [
   { icon: Clock, text: "30-second result" },
   { icon: ShieldCheck, text: "No signup required" },
-  { icon: Radar, text: "GeM · CPPP · state · PSU" },
+  { icon: Radar, text: "CPPP · state · PSU" },
 ];
 
 export default function FreeCheckPage() {

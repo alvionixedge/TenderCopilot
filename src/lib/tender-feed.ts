@@ -14,7 +14,7 @@ import { z } from "zod";
  * never substitutes fake data.
  */
 export interface NormalizedTender {
-  source: string; // GeM | CPPP | StatePortal | PSU | <provider label>
+  source: string; // CPPP | StatePortal | PSU | <provider label>
   sourceUrl: string; // canonical, unique (exact-dedupe key)
   title: string;
   department: string | null;

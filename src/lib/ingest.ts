@@ -35,6 +35,9 @@ export async function ingestTenders(
       .onConflictDoUpdate({
         target: tenders.sourceUrl,
         set: {
+          // Refresh source too, so re-crawls correct any stale label (e.g. rows
+          // previously classified "GeM" before that label was removed).
+          source: t.source,
           title: t.title,
           department: t.department,
           estimatedValue: value,
