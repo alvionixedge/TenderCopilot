@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { desc, eq, inArray } from "drizzle-orm";
+import { count, desc, eq, inArray } from "drizzle-orm";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { tenderMatches, tenders } from "@/db/schema";
@@ -11,14 +11,30 @@ import { tryQuery } from "@/lib/safe";
 export const metadata = { title: "Tenders" };
 export const dynamic = "force-dynamic";
 
+const PAGE_SIZE = 50;
+
 function inr(value: string | null) {
   if (!value) return "—";
   return `₹${Number(value).toLocaleString("en-IN")}`;
 }
 
-export default async function TendersPage() {
+export default async function TendersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const session = (await auth())!;
   const company = await tryQuery(() => getActiveCompany(session.orgId), null);
+
+  const total = await tryQuery(
+    async () =>
+      (await db().select({ c: count() }).from(tenders).where(eq(tenders.status, "open")))[0].c,
+    0,
+  );
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const requestedPage = Number((await searchParams).page) || 1;
+  const page = Math.min(Math.max(1, requestedPage), totalPages);
+  const offset = (page - 1) * PAGE_SIZE;
 
   const rows = await tryQuery(
     () =>
@@ -27,7 +43,8 @@ export default async function TendersPage() {
         .from(tenders)
         .where(eq(tenders.status, "open"))
         .orderBy(desc(tenders.createdAt))
-        .limit(50),
+        .limit(PAGE_SIZE)
+        .offset(offset),
     [],
   );
 
@@ -72,7 +89,14 @@ export default async function TendersPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Tender feed</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Open tenders from GeM, CPPP, state portals and PSUs, ranked for{" "}
+            {total > 0 ? (
+              <>
+                <strong>{total.toLocaleString("en-IN")}</strong> open tenders from GeM, CPPP,
+                state portals and PSUs, ranked for{" "}
+              </>
+            ) : (
+              <>Open tenders from GeM, CPPP, state portals and PSUs, ranked for{" "}</>
+            )}
             {company ? <strong>{company.companyName}</strong> : "your company"}.
           </p>
         </div>
@@ -140,6 +164,45 @@ export default async function TendersPage() {
           </ul>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-sm text-slate-600">
+          <span>
+            Showing {(offset + 1).toLocaleString("en-IN")}–
+            {Math.min(offset + PAGE_SIZE, total).toLocaleString("en-IN")} of{" "}
+            {total.toLocaleString("en-IN")}
+          </span>
+          <div className="flex items-center gap-2">
+            {page > 1 ? (
+              <Link
+                href={`/tenders?page=${page - 1}`}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50"
+              >
+                ← Previous
+              </Link>
+            ) : (
+              <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 font-medium text-slate-400">
+                ← Previous
+              </span>
+            )}
+            <span className="px-2">
+              Page {page} of {totalPages}
+            </span>
+            {page < totalPages ? (
+              <Link
+                href={`/tenders?page=${page + 1}`}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Next →
+              </Link>
+            ) : (
+              <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 font-medium text-slate-400">
+                Next →
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
