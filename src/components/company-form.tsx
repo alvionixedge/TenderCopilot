@@ -4,10 +4,28 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
-export function CompanyForm() {
+export interface CompanyFormValues {
+  companyName?: string | null;
+  gstNumber?: string | null;
+  panNumber?: string | null;
+  msmeNumber?: string | null;
+  website?: string | null;
+  description?: string | null;
+  employeeCount?: number | null;
+  annualTurnover?: string | null;
+}
+
+export function CompanyForm({
+  company,
+  onDone,
+}: {
+  company?: CompanyFormValues;
+  onDone?: () => void;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const editing = Boolean(company);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -26,12 +44,13 @@ export function CompanyForm() {
     };
     try {
       const res = await fetch("/api/v1/companies", {
-        method: "POST",
+        method: editing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error?.message ?? "Failed to save profile");
+      onDone?.();
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -50,33 +69,33 @@ export function CompanyForm() {
           <span className="mb-1 block text-sm font-medium text-slate-700">
             Legal company name *
           </span>
-          <input name="companyName" required minLength={2} className={field} placeholder="Acme Infotech Pvt. Ltd." />
+          <input name="companyName" required minLength={2} defaultValue={company?.companyName ?? ""} className={field} placeholder="Acme Infotech Pvt. Ltd." />
         </label>
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-slate-700">GSTIN</span>
-          <input name="gstNumber" maxLength={15} minLength={15} className={field} placeholder="22AAAAA0000A1Z5" />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium text-slate-700">PAN</span>
-          <input name="panNumber" maxLength={10} minLength={10} className={field} placeholder="AAAAA0000A" />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium text-slate-700">MSME / Udyam no.</span>
-          <input name="msmeNumber" className={field} placeholder="UDYAM-MH-00-0000000" />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium text-slate-700">Website</span>
-          <input name="website" type="url" className={field} placeholder="https://example.com" />
+          <span className="mb-1 block text-sm font-medium text-slate-700">GSTIN *</span>
+          <input name="gstNumber" required maxLength={15} minLength={15} defaultValue={company?.gstNumber ?? ""} className={field} placeholder="22AAAAA0000A1Z5" />
         </label>
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-slate-700">
-            Annual turnover (INR)
+            Annual turnover (INR) *
           </span>
-          <input name="annualTurnover" type="number" min={0} className={field} placeholder="25000000" />
+          <input name="annualTurnover" type="number" required min={1} defaultValue={company?.annualTurnover ? Number(company.annualTurnover) : ""} className={field} placeholder="25000000" />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm font-medium text-slate-700">PAN</span>
+          <input name="panNumber" maxLength={10} minLength={10} defaultValue={company?.panNumber ?? ""} className={field} placeholder="AAAAA0000A" />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm font-medium text-slate-700">MSME / Udyam no.</span>
+          <input name="msmeNumber" defaultValue={company?.msmeNumber ?? ""} className={field} placeholder="UDYAM-MH-00-0000000" />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm font-medium text-slate-700">Website</span>
+          <input name="website" type="url" defaultValue={company?.website ?? ""} className={field} placeholder="https://example.com" />
         </label>
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-slate-700">Employee count</span>
-          <input name="employeeCount" type="number" min={1} className={field} placeholder="40" />
+          <input name="employeeCount" type="number" min={1} defaultValue={company?.employeeCount ?? ""} className={field} placeholder="40" />
         </label>
         <label className="block sm:col-span-2">
           <span className="mb-1 block text-sm font-medium text-slate-700">
@@ -87,20 +106,32 @@ export function CompanyForm() {
             required
             minLength={10}
             rows={5}
+            defaultValue={company?.description ?? ""}
             className={field}
             placeholder="We are an IT services company specialising in web portals, cloud migration and AMC contracts for government departments…"
           />
         </label>
       </div>
       {error && <p className="text-sm text-rose-600">{error}</p>}
-      <button
-        type="submit"
-        disabled={busy}
-        className="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60"
-      >
-        {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-        Save company profile
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={busy}
+          className="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60"
+        >
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+          {editing ? "Update profile" : "Save company profile"}
+        </button>
+        {editing && onDone && (
+          <button
+            type="button"
+            onClick={onDone}
+            className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
     </form>
   );
 }
