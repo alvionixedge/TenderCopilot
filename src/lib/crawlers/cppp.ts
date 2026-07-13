@@ -66,6 +66,21 @@ export function classifySource(org: string, title: string): string {
  * Title/Ref/Id | Organisation | Corrigendum. Each row links to a
  * `tendersfullview` detail URL (unique — used as sourceUrl).
  */
+/**
+ * CPPP detail URLs embed a rotating timestamp segment
+ * (…/tendersfullview/<id>A13h1<hash>A13h1<hash>A13h1<unix-ts>A13h1…), so the raw
+ * href changes on EVERY fetch. Using it as the dedup key makes every crawl
+ * insert fresh rows instead of updating, accumulating duplicates. Canonicalize
+ * to the stable tender-id segment (everything before the first `A13h1`
+ * delimiter) for a stable `source_url`. Non-CPPP URLs are returned unchanged.
+ */
+export function canonicalCpppUrl(href: string): string {
+  const marker = href.indexOf("tendersfullview/");
+  if (marker === -1) return href;
+  const delim = href.indexOf("A13h1", marker);
+  return delim === -1 ? href : href.slice(0, delim);
+}
+
 export function parseCpppListing(html: string): NormalizedTender[] {
   const root = parse(html);
   const out: NormalizedTender[] = [];
@@ -77,16 +92,21 @@ export function parseCpppListing(html: string): NormalizedTender[] {
       .querySelector('a[href*="tendersfullview"]')
       ?.getAttribute("href")
       ?.trim();
-    if (!link || seen.has(link)) continue;
+    if (!link) continue;
+    // Dedup on the canonical (timestamp-stripped) URL; keep the full href for
+    // this run's detail-page enrichment.
+    const sourceUrl = canonicalCpppUrl(link);
+    if (seen.has(sourceUrl)) continue;
 
     const clean = (s: string) => s.replace(/\s+/g, " ").trim();
     const title = clean(tds[4].text).slice(0, 500);
     if (!title) continue;
     const org = clean(tds[5].text);
-    seen.add(link);
+    seen.add(sourceUrl);
     out.push({
       source: classifySource(org, title),
-      sourceUrl: link,
+      sourceUrl,
+      detailUrl: link,
       title,
       department: org || null,
       estimatedValue: null, // not shown on the listing; enriched later if needed
