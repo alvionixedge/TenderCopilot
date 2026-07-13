@@ -84,7 +84,7 @@ const MAX_TENDERS = 500;
  * otherwise the direct CPPP crawler. Either way real data — a failure throws
  * (fails the job) and never substitutes samples.
  */
-export async function fetchTenders(): Promise<{
+export async function fetchTenders(opts?: { pages?: number }): Promise<{
   source: "feed" | "cppp";
   tenders: NormalizedTender[];
 }> {
@@ -94,7 +94,12 @@ export async function fetchTenders(): Promise<{
   // state and PSU tenders straight from eprocure.gov.in.
   if (!url) {
     const { crawlCppp } = await import("./crawlers/cppp");
-    const pages = Math.max(1, Math.min(20, Number(process.env.TENDER_CRAWL_PAGES) || 15));
+    // Caller may cap depth (e.g. the Vercel cron stays shallow to fit the 60s
+    // function limit); otherwise fall back to TENDER_CRAWL_PAGES / default 15.
+    const pages = Math.max(
+      1,
+      Math.min(20, opts?.pages ?? (Number(process.env.TENDER_CRAWL_PAGES) || 15)),
+    );
     return { source: "cppp", tenders: await crawlCppp(pages) };
   }
 
