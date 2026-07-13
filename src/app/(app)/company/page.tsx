@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { companyDocuments } from "@/db/schema";
 import { CompanyForm, DocumentUpload } from "@/components/company-form";
+import { CompanyProfileEditable } from "@/components/company-profile-editable";
 import { isR2Configured } from "@/lib/r2";
 import { getActiveCompany } from "@/lib/tenant";
 import { tryQuery } from "@/lib/safe";
@@ -11,9 +12,14 @@ import { tryQuery } from "@/lib/safe";
 export const metadata = { title: "Company profile" };
 export const dynamic = "force-dynamic";
 
-export default async function CompanyPage() {
+export default async function CompanyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ edit?: string }>;
+}) {
   const session = (await auth())!;
   const company = await tryQuery(() => getActiveCompany(session.orgId), null);
+  const startInEdit = (await searchParams).edit === "1";
 
   const documents = company
     ? await tryQuery(
@@ -36,43 +42,20 @@ export default async function CompanyPage() {
 
       <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         {company ? (
-          <div>
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">{company.companyName}</h2>
-                <p className="mt-1 text-sm text-slate-600">{company.website}</p>
-              </div>
-              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
-                Active profile
-              </span>
-            </div>
-            <dl className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
-              {[
-                ["GSTIN", company.gstNumber ?? "—"],
-                ["PAN", company.panNumber ?? "—"],
-                ["MSME / Udyam", company.msmeNumber ?? "—"],
-                [
-                  "Annual turnover",
-                  company.annualTurnover
-                    ? `₹${Number(company.annualTurnover).toLocaleString("en-IN")}`
-                    : "—",
-                ],
-                ["Employees", company.employeeCount?.toString() ?? "—"],
-                ["Created", new Date(company.createdAt).toLocaleDateString("en-IN")],
-              ].map(([k, v]) => (
-                <div key={k} className="rounded-xl bg-slate-50 p-3">
-                  <dt className="text-xs text-slate-500">{k}</dt>
-                  <dd className="mt-1 text-sm font-semibold text-slate-900">{v}</dd>
-                </div>
-              ))}
-            </dl>
-            {company.description && (
-              <div className="mt-4 rounded-xl bg-slate-50 p-4">
-                <div className="text-xs text-slate-500">Capability statement</div>
-                <p className="mt-1 text-sm leading-6 text-slate-700">{company.description}</p>
-              </div>
-            )}
-          </div>
+          <CompanyProfileEditable
+            initialEdit={startInEdit}
+            company={{
+              companyName: company.companyName,
+              website: company.website,
+              gstNumber: company.gstNumber,
+              panNumber: company.panNumber,
+              msmeNumber: company.msmeNumber,
+              annualTurnover: company.annualTurnover,
+              employeeCount: company.employeeCount,
+              description: company.description,
+              createdAt: company.createdAt.toISOString(),
+            }}
+          />
         ) : (
           <CompanyForm />
         )}
