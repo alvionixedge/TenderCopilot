@@ -90,8 +90,8 @@ export async function captureLeadAndNotify(input: LeadInput): Promise<void> {
 
 /**
  * Scores the ingested tender feed against the lead's capabilities and
- * returns the top matches. Falls back to the curated sample feed when the
- * database has no tenders yet.
+ * returns the top matches. Live data only — returns an empty list when the
+ * database has no tenders yet (no sample fallback).
  */
 async function topMatchesForCapabilities(
   company: CompanyProfileInput,

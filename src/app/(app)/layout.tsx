@@ -13,6 +13,7 @@ import {
 import { auth, signOut } from "@/auth";
 import { isAdminUser } from "@/lib/admin";
 import { Logo, Mark } from "@/components/logo";
+import { MobileNav } from "@/components/mobile-nav";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -29,6 +30,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!session?.userId) redirect("/signin");
 
   const showOps = isAdminUser(session.user?.email);
+
+  async function signOutAction() {
+    "use server";
+    await signOut({ redirectTo: "/" });
+  }
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -72,12 +78,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </div>
             </div>
           </div>
-          <form
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/" });
-            }}
-          >
+          <form action={signOutAction}>
             <button
               type="submit"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
@@ -93,13 +94,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Link href="/dashboard">
           <Logo size="sm" />
         </Link>
-        <nav className="flex gap-4">
-          {nav.slice(0, 4).map((item) => (
-            <Link key={item.href} href={item.href} aria-label={item.label}>
-              <item.icon className="h-5 w-5 text-slate-600" />
-            </Link>
-          ))}
-        </nav>
+        <MobileNav
+          items={nav.map((n) => ({ href: n.href, label: n.label }))}
+          showOps={showOps}
+          userName={session.user?.name ?? "Member"}
+          plan={session.plan}
+          signOutAction={signOutAction}
+        />
       </div>
 
       <main className="flex-1 px-4 pb-16 pt-20 md:ml-60 md:px-8 md:pt-8">{children}</main>
