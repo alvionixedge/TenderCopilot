@@ -29,7 +29,22 @@ export interface GeneratedProposal {
   traceId: string | null;
 }
 
-const SYSTEM_PROMPT = `You are a senior bid writer for Indian government procurement. You produce complete, formal, compliance-oriented tender proposals in Markdown. Use ## section headings. Never fabricate certificates, registration numbers, or financials that were not provided. Where a supporting document is needed, reference it as an annexure placeholder. Write in clear professional English suited to Indian public procurement.`;
+// Proposals are the flagship, low-frequency output where quality matters most,
+// so they run on a stronger model than the cost-optimized default used for
+// scoring. Override with ANTHROPIC_PROPOSAL_MODEL (e.g. claude-opus-4-8 for max
+// quality, or claude-haiku-4-5 to minimize cost).
+const PROPOSAL_MODEL = process.env.ANTHROPIC_PROPOSAL_MODEL || "claude-sonnet-5";
+
+const SYSTEM_PROMPT = `You are a senior bid writer for Indian government and PSU procurement with 15+ years of experience winning competitive tenders. You draft complete, formal, submission-ready proposals in Markdown.
+
+Rules:
+- Write substantive, SPECIFIC content — never generic boilerplate. Tailor every section to THIS tender's scope and THIS company's stated capabilities; refer to the actual work, issuing department and requirements by name.
+- Use ## for section headings and Markdown tables where they aid clarity (compliance matrix, company particulars).
+- The Compliance Matrix must map EVERY extracted requirement to a specific, credible response — never a blanket "Complied".
+- Ground the Technical Approach in the company's real capability statement. If the company is clearly a poor fit for the tender's domain, still produce a professional document but keep every claim honest — do not overstate capability.
+- Never fabricate certificates, registration numbers, turnover figures, or past-project names that were not provided. Where a supporting document is needed, reference it as "(Annexure X)".
+- Include 1–2 genuine win themes / differentiators drawn only from the provided company profile.
+- Write in clear, formal English suited to Indian public procurement — persuasive but factual.`;
 
 /**
  * Generates the proposal body. Uses Claude when configured (spec 2.2);
@@ -48,7 +63,8 @@ export async function generateProposal(ctx: ProposalContext): Promise<GeneratedP
         purpose: "proposal",
         systemPrompt: SYSTEM_PROMPT,
         userPrompt,
-        maxTokens: 8000,
+        model: PROPOSAL_MODEL,
+        maxTokens: 12000,
       });
       if (text && text.trim().length > 0) {
         return { contentMd: text, completeness: estimateCompleteness(text, ctx), traceId };
@@ -89,7 +105,18 @@ function buildPrompt(ctx: ProposalContext): string {
     `Annual turnover: ${ctx.company.annualTurnover ? `INR ${ctx.company.annualTurnover}` : "Not provided"}`,
     `Employees: ${ctx.company.employeeCount ?? "Not provided"}`,
     ``,
-    `Produce these sections: Cover Letter, Executive Summary, Company Profile, Understanding of Requirements, Technical Approach & Methodology, Compliance Matrix (table mapping every mandatory requirement to our response), Commercial Terms Note, Declarations, and Annexure List.`,
+    `Write a complete, submission-ready proposal. Each section must be substantive and specific to THIS tender — not generic boilerplate:`,
+    `1. Cover Letter — addressed to the issuing department, quoting the tender title and reference number.`,
+    `2. Executive Summary — why this company is a credible bidder for THIS exact scope.`,
+    `3. Company Profile — a particulars table plus a short narrative tying the company to the tender's domain.`,
+    `4. Understanding of Requirements — restate the scope in your own words to show you have read it.`,
+    `5. Technical Approach & Methodology — a phased, tender-specific plan grounded in the company's capability statement, with concrete deliverables, timeline and quality assurance.`,
+    `6. Compliance Matrix — a Markdown table mapping EVERY requirement listed above to a specific response and its supporting annexure.`,
+    `7. Commercial Terms Note — reference the two-bid system and EMD; do NOT invent prices.`,
+    `8. Declarations — standard non-blacklisting and correctness declarations.`,
+    `9. Annexure List.`,
+    ``,
+    `Produce a thorough, professional document. Do not fabricate any specifics that were not provided above.`,
   ].join("\n");
 }
 
