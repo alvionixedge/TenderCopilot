@@ -102,6 +102,38 @@ export interface DetailFields {
   estimatedValue: number | null;
   emd: number | null;
   requirements: { requirement: string; mandatory: boolean; category: string | null }[];
+  msmeReserved: boolean | null; // true if reserved for MSE/MSME; null if not stated
+  minEmployees: number | null; // minimum manpower/staff required; null if not stated
+}
+
+/**
+ * Best-effort MSE/MSME reservation from rendered detail text. CPPP rarely
+ * exposes this as a structured field, so we look for explicit reservation
+ * phrasing. Returns true when found, otherwise null (unknown — never false,
+ * since absence of the phrase doesn't prove it's open to all).
+ */
+export function detectMsmeReserved(text: string): boolean | null {
+  const t = text.replace(/\s+/g, " ");
+  const reserved =
+    /\breserved\s+for\s+(?:MSE|MSME|micro\s+and\s+small|micro,?\s+small)/i.test(t) ||
+    /\b(?:MSE|MSME)\s+reserved\b/i.test(t) ||
+    /\bexclusively\s+for\s+(?:MSE|MSME)\b/i.test(t) ||
+    /\bonly\s+for\s+(?:MSE|MSME)\s+(?:bidders|vendors|firms)\b/i.test(t);
+  return reserved ? true : null;
+}
+
+/**
+ * Best-effort minimum-manpower requirement (e.g. "minimum 10 technical
+ * personnel"). Returns the number when a clear pattern matches, else null.
+ */
+export function detectMinEmployees(text: string): number | null {
+  const t = text.replace(/\s+/g, " ");
+  const m = t.match(
+    /\b(?:minimum|at\s+least|min\.?)\s+(?:of\s+)?(\d{1,4})\s+(?:technical\s+)?(?:staff|personnel|manpower|employees|engineers|technicians|skilled\s+(?:staff|manpower|workers))/i,
+  );
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isNaN(n) || n <= 0 || n > 100000 ? null : n;
 }
 
 /**
@@ -131,7 +163,13 @@ export function extractDetailFields(text: string): DetailFields {
   if (wd && wd[1].trim().length > 8) {
     requirements.push({ requirement: wd[1].trim().slice(0, 500), mandatory: true, category: null });
   }
-  return { estimatedValue, emd, requirements };
+  return {
+    estimatedValue,
+    emd,
+    requirements,
+    msmeReserved: detectMsmeReserved(text),
+    minEmployees: detectMinEmployees(text),
+  };
 }
 
 async function fetchListingPage(listing: string, page: number): Promise<string> {

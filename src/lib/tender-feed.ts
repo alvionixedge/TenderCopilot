@@ -22,6 +22,9 @@ export interface NormalizedTender {
   emd: number | null;
   submissionDate: Date | null;
   requirements: { requirement: string; mandatory: boolean; category: string | null }[];
+  // Detail-page enrichment (optional): eligibility signals absent from listings.
+  msmeReserved?: boolean | null;
+  minEmployees?: number | null;
 }
 
 

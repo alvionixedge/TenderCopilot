@@ -151,6 +151,10 @@ export const tenders = pgTable("tenders", {
   estimatedValue: numeric("estimated_value", { precision: 15, scale: 2 }),
   emd: numeric("emd", { precision: 15, scale: 2 }),
   submissionDate: timestamp("submission_date", { withTimezone: true }),
+  // Detail-page enrichment (best-effort, nullable): eligibility signals not
+  // present in the CPPP listing. Used to filter the feed by MSME / manpower.
+  msmeReserved: boolean("msme_reserved"), // tender reserved for MSE/MSME bidders
+  minEmployees: integer("min_employees"), // minimum manpower/staff the tender requires
   currentVersion: integer("current_version").notNull().default(1),
   status: varchar("status", { length: 20 }).notNull().default("open"), // open | amended | extended | closed | cancelled
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
