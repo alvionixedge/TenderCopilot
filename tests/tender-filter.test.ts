@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   RELEVANCE_THRESHOLD,
+  employeesEligible,
   fitsProfile,
+  msmeEligible,
   tenderRelevance,
   turnoverEligible,
 } from "@/lib/tender-filter";
@@ -103,5 +105,32 @@ describe("missingRequiredProfileFields", () => {
         description: "IT services company for government departments.",
       }),
     ).toEqual([]);
+  });
+});
+
+describe("msmeEligible", () => {
+  it("blocks a non-MSME company from an MSME-reserved tender", () => {
+    expect(msmeEligible(null, true)).toBe(false);
+    expect(msmeEligible("", true)).toBe(false);
+  });
+  it("allows an MSME company into an MSME-reserved tender", () => {
+    expect(msmeEligible("UDYAM-MH-00-0000000", true)).toBe(true);
+  });
+  it("passes when reservation is unknown or not reserved", () => {
+    expect(msmeEligible(null, null)).toBe(true);
+    expect(msmeEligible(null, false)).toBe(true);
+  });
+});
+
+describe("employeesEligible", () => {
+  it("blocks a company below the tender's minimum manpower", () => {
+    expect(employeesEligible(5, 20)).toBe(false);
+  });
+  it("allows a company that meets the minimum", () => {
+    expect(employeesEligible(25, 20)).toBe(true);
+  });
+  it("passes when either side is unknown", () => {
+    expect(employeesEligible(null, 20)).toBe(true);
+    expect(employeesEligible(5, null)).toBe(true);
   });
 });

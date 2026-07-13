@@ -21,12 +21,16 @@ export const RELEVANCE_THRESHOLD = 30;
 export interface FilterProfile {
   description: string | null;
   annualTurnover: string | null;
+  msmeNumber?: string | null;
+  employeeCount?: number | null;
 }
 
 export interface FilterTender {
   title: string;
   department: string | null;
   estimatedValue: string | null;
+  msmeReserved?: boolean | null;
+  minEmployees?: number | null;
 }
 
 /** 0–100 keyword relevance of a tender to the company's capability statement. */
@@ -52,10 +56,42 @@ export function turnoverEligible(
   return turnover >= value * 0.3;
 }
 
-/** A tender "fits" when it clears both the capability and turnover checks. */
+/**
+ * MSE/MSME reservation: if a tender is reserved for MSME and the company has no
+ * Udyam/MSME registration, it can't bid. Unknown reservation (null) → pass.
+ */
+export function msmeEligible(
+  msmeNumber: string | null | undefined,
+  msmeReserved: boolean | null | undefined,
+): boolean {
+  if (!msmeReserved) return true; // not reserved (or unknown) → open to all
+  return Boolean(msmeNumber && msmeNumber.trim().length > 0);
+}
+
+/**
+ * Manpower: if a tender states a minimum staff requirement and the company has
+ * fewer employees, it likely fails pre-qualification. Unknown on either side →
+ * pass (we don't disqualify on data we don't have).
+ */
+export function employeesEligible(
+  employeeCount: number | null | undefined,
+  minEmployees: number | null | undefined,
+): boolean {
+  if (minEmployees == null || minEmployees <= 0) return true;
+  if (employeeCount == null) return true;
+  return employeeCount >= minEmployees;
+}
+
+/**
+ * A tender "fits" when it clears every check for which we have data:
+ * capability relevance, turnover, MSME reservation and manpower. Each check
+ * passes when its inputs are missing, so a partial profile still narrows.
+ */
 export function fitsProfile(profile: FilterProfile, tender: FilterTender): boolean {
   return (
     tenderRelevance(profile, tender) >= RELEVANCE_THRESHOLD &&
-    turnoverEligible(profile.annualTurnover, tender.estimatedValue)
+    turnoverEligible(profile.annualTurnover, tender.estimatedValue) &&
+    msmeEligible(profile.msmeNumber, tender.msmeReserved) &&
+    employeesEligible(profile.employeeCount, tender.minEmployees)
   );
 }
