@@ -33,7 +33,9 @@ async function main() {
     let done = 0;
     for (const t of tenders.slice(0, enrichLimit)) {
       try {
-        await page.goto(t.sourceUrl, { waitUntil: "networkidle", timeout: 30000 });
+        // Visit the full (fresh) detail URL — the stored sourceUrl is the
+        // canonical timestamp-stripped form and may not render the live page.
+        await page.goto(t.detailUrl ?? t.sourceUrl, { waitUntil: "networkidle", timeout: 30000 });
         const text = await page.innerText("body");
         const f = extractDetailFields(text);
         if (f.estimatedValue != null) t.estimatedValue = f.estimatedValue;

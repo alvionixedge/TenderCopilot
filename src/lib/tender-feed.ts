@@ -16,6 +16,7 @@ import { z } from "zod";
 export interface NormalizedTender {
   source: string; // CPPP | StatePortal | PSU | <provider label>
   sourceUrl: string; // canonical, unique (exact-dedupe key)
+  detailUrl?: string | null; // full (fresh) URL for detail-page enrichment; not stored
   title: string;
   department: string | null;
   estimatedValue: number | null;

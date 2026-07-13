@@ -17,6 +17,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "node scripts/seed.mjs",
     "db:purge-samples": "node scripts/purge-sample-tenders.mjs",
+    "db:dedupe-tenders": "node scripts/dedupe-tenders.mjs",
     "crawl:cppp": "tsx scripts/crawl-cppp.ts"
   },
   "dependencies": {
