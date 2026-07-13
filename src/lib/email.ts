@@ -67,7 +67,7 @@ export function welcomeEmail(name: string): { subject: string; html: string } {
       <h1 style="font-size:20px;margin:0 0 12px">Thanks for checking your eligibility${name ? `, ${name}` : ""}!</h1>
       <p style="font-size:15px;line-height:22px;color:#334155;margin:0 0 16px">
         You just saw an instant read on whether that tender is worth your time. That&rsquo;s a
-        taste of what TenderCopilot AI does across every open government tender — GeM, CPPP, state
+        taste of what TenderCopilot AI does across every open government tender — CPPP, state
         portals and PSUs.
       </p>
       <p style="font-size:15px;line-height:22px;color:#334155;margin:0 0 16px">

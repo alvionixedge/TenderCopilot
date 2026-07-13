@@ -91,11 +91,11 @@ export default async function TendersPage({
           <p className="mt-1 text-sm text-slate-600">
             {total > 0 ? (
               <>
-                <strong>{total.toLocaleString("en-IN")}</strong> open tenders from GeM, CPPP,
+                <strong>{total.toLocaleString("en-IN")}</strong> open tenders from CPPP,
                 state portals and PSUs, ranked for{" "}
               </>
             ) : (
-              <>Open tenders from GeM, CPPP, state portals and PSUs, ranked for{" "}</>
+              <>Open tenders from CPPP, state portals and PSUs, ranked for{" "}</>
             )}
             {company ? <strong>{company.companyName}</strong> : "your company"}.
           </p>

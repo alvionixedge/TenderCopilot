@@ -83,8 +83,8 @@ describe("classifySource (portal-type label)", () => {
     expect(classifySource("Karnataka Public Works Department", "Road work")).toBe("StatePortal");
     expect(classifySource("Zilla Parishad Pune", "Anganwadi")).toBe("StatePortal");
   });
-  it("labels GeM", () => {
-    expect(classifySource("Some Dept", "Procurement via GeM")).toBe("GeM");
+  it("does NOT label GeM (we don't crawl GeM) — falls through to CPPP", () => {
+    expect(classifySource("Some Dept", "Procurement via GeM")).toBe("CPPP");
   });
   it("defaults to CPPP for central bodies", () => {
     expect(classifySource("Directorate of Printing", "Stationery rate contract")).toBe("CPPP");
