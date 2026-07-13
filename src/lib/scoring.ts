@@ -66,7 +66,10 @@ export function scoreTender(company: CompanyProfileInput, tender: TenderInput): 
   const matchScore = keywordOverlapScore(company.description ?? "", tenderText);
   if (matchScore >= 60) reasons.push("Strong overlap between your capability profile and the tender scope.");
   else if (matchScore >= 40) reasons.push("Partial overlap with the tender scope; review the technical requirements.");
-  else reasons.push("Limited keyword overlap with the tender scope.");
+  else
+    reasons.push(
+      "Low capability match: the tender scope does not clearly align with your capability statement. Note that the eligibility score below measures only registration/financial readiness (GST, turnover) — not whether you can technically perform this work.",
+    );
 
   // --- Eligibility (hard criteria) ---
   let eligibility = 100;
@@ -105,10 +108,17 @@ export function scoreTender(company: CompanyProfileInput, tender: TenderInput): 
 
   eligibility = Math.max(0, Math.min(100, eligibility));
 
-  // --- Win probability: blend, dampened (no outcome history at MVP) ---
+  // --- Win probability: capability-gated (no outcome history at MVP) ---
+  // A bidder that can't perform the work can't win it, however compliant it is.
+  // So capability (match) multiplicatively GATES readiness (eligibility) rather
+  // than being averaged with it — otherwise a fully-registered but wrong-sector
+  // bidder shows a misleadingly high number (e.g. a DevOps firm scoring 32% on
+  // an RF-manufacturing tender). Low match now collapses the win estimate.
+  const capability = matchScore / 100;
+  const readiness = eligibility / 100;
   const winProbability = Math.max(
-    5,
-    Math.min(90, Math.round(matchScore * 0.45 + eligibility * 0.35)),
+    2,
+    Math.min(90, Math.round(100 * capability * (0.6 + 0.4 * readiness))),
   );
 
   return { matchScore, eligibilityScore: eligibility, winProbability, reasons };

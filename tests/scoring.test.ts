@@ -72,4 +72,30 @@ describe("scoreTender", () => {
     const result = scoreTender(baseCompany, baseTender);
     expect(result.reasons.length).toBeGreaterThan(0);
   });
+
+  it("collapses win probability on a capability mismatch despite good compliance", () => {
+    // A DevOps/AWS consultancy (fully registered) vs an RF-hardware
+    // manufacturing tender: eligibility can stay high on paperwork, but the
+    // win estimate must NOT — capability gates it.
+    const devopsCo = {
+      description: "DevOps and AWS cloud services and consultation.",
+      annualTurnover: "50000000",
+      gstNumber: "27AAAAA0000A1Z5",
+      msmeNumber: null,
+      employeeCount: 10,
+    };
+    const rfTender = {
+      title: "Manufacturing and Supply of X-band Feed Components",
+      department: "Electronics Corporation of India Limited",
+      estimatedValue: null,
+      emd: null,
+      requirements: [{ requirement: "Waveguide fabrication capability", mandatory: true }],
+    };
+    const result = scoreTender(devopsCo, rfTender);
+    expect(result.matchScore).toBeLessThan(35); // no capability overlap
+    expect(result.winProbability).toBeLessThan(25); // must not overstate a hopeless bid
+    // and a genuinely aligned bid should score far higher on win
+    const good = scoreTender(baseCompany, baseTender);
+    expect(good.winProbability).toBeGreaterThan(result.winProbability + 30);
+  });
 });
