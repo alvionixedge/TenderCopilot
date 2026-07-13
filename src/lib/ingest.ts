@@ -30,6 +30,8 @@ export async function ingestTenders(
         estimatedValue: value,
         emd,
         submissionDate: t.submissionDate,
+        msmeReserved: t.msmeReserved ?? null,
+        minEmployees: t.minEmployees ?? null,
         status: "open",
       })
       .onConflictDoUpdate({
@@ -40,9 +42,14 @@ export async function ingestTenders(
           source: t.source,
           title: t.title,
           department: t.department,
-          estimatedValue: value,
-          emd,
           submissionDate: t.submissionDate,
+          // Enrichment fields only come from the (opt-in) detail-page crawl, so
+          // only overwrite when the incoming value is present — a plain listing
+          // re-crawl must not wipe previously-enriched value/EMD/MSME/manpower.
+          ...(value !== null ? { estimatedValue: value } : {}),
+          ...(emd !== null ? { emd } : {}),
+          ...(t.msmeReserved != null ? { msmeReserved: t.msmeReserved } : {}),
+          ...(t.minEmployees != null ? { minEmployees: t.minEmployees } : {}),
         },
       })
       .returning({ id: tenders.id, createdAt: tenders.createdAt });

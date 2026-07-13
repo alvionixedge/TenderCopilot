@@ -39,6 +39,8 @@ async function main() {
         if (f.estimatedValue != null) t.estimatedValue = f.estimatedValue;
         if (f.emd != null) t.emd = f.emd;
         if (f.requirements.length > 0) t.requirements = f.requirements;
+        if (f.msmeReserved != null) t.msmeReserved = f.msmeReserved;
+        if (f.minEmployees != null) t.minEmployees = f.minEmployees;
         done++;
       } catch (e) {
         console.warn(`  enrich failed: ${t.sourceUrl} — ${String(e).slice(0, 120)}`);
@@ -56,6 +58,8 @@ async function main() {
     estimatedValue: t.estimatedValue,
     emd: t.emd,
     submissionDate: t.submissionDate ? t.submissionDate.toISOString() : null,
+    msmeReserved: t.msmeReserved ?? null,
+    minEmployees: t.minEmployees ?? null,
     requirements: t.requirements,
   }));
 

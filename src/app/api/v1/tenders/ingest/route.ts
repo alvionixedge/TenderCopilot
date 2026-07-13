@@ -22,6 +22,8 @@ const itemSchema = z.object({
   estimatedValue: z.coerce.number().nonnegative().nullish(),
   emd: z.coerce.number().nonnegative().nullish(),
   submissionDate: z.string().nullish(),
+  msmeReserved: z.boolean().nullish(),
+  minEmployees: z.coerce.number().int().positive().nullish(),
   requirements: z
     .array(
       z.object({
@@ -73,6 +75,8 @@ export async function POST(req: Request) {
     estimatedValue: t.estimatedValue ?? null,
     emd: t.emd ?? null,
     submissionDate: t.submissionDate ? new Date(t.submissionDate) : null,
+    msmeReserved: t.msmeReserved ?? null,
+    minEmployees: t.minEmployees ?? null,
     requirements: (t.requirements ?? []).map((r) => ({
       requirement: r.requirement,
       mandatory: r.mandatory ?? true,

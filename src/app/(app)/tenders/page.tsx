@@ -211,6 +211,14 @@ export default async function TendersPage({
                             Closes {new Date(t.submissionDate).toLocaleDateString("en-IN")}
                           </span>
                         )}
+                        {t.msmeReserved && (
+                          <span className="rounded bg-emerald-100 px-1.5 py-0.5 font-medium text-emerald-700">
+                            MSME reserved
+                          </span>
+                        )}
+                        {t.minEmployees != null && (
+                          <span>Min staff {t.minEmployees}</span>
+                        )}
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">

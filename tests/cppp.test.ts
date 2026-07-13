@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   classifySource,
+  detectMinEmployees,
+  detectMsmeReserved,
   extractDetailFields,
   parseCpppDate,
   parseCpppListing,
@@ -114,5 +116,35 @@ describe("extractDetailFields (detail-page enrichment)", () => {
     expect(f.estimatedValue).toBeNull();
     expect(f.emd).toBeNull();
     expect(f.requirements).toEqual([]);
+  });
+});
+
+describe("detectMsmeReserved", () => {
+  it("flags an explicitly MSE/MSME-reserved tender", () => {
+    expect(detectMsmeReserved("This tender is reserved for MSE bidders only.")).toBe(true);
+    expect(detectMsmeReserved("Procurement reserved for Micro and Small Enterprises")).toBe(true);
+  });
+  it("returns null (unknown) when not stated", () => {
+    expect(detectMsmeReserved("Open tender for supply of computers.")).toBeNull();
+  });
+});
+
+describe("detectMinEmployees", () => {
+  it("extracts a minimum manpower requirement", () => {
+    expect(detectMinEmployees("Bidder must have minimum 15 technical personnel on rolls.")).toBe(15);
+    expect(detectMinEmployees("at least 8 skilled staff required")).toBe(8);
+  });
+  it("returns null when no manpower requirement is present", () => {
+    expect(detectMinEmployees("Supply and installation of desktops.")).toBeNull();
+  });
+});
+
+describe("extractDetailFields (enrichment fields)", () => {
+  it("includes msmeReserved and minEmployees", () => {
+    const f = extractDetailFields(
+      "Work Description : Facility management. Reserved for MSE. Bidder must have minimum 20 personnel.",
+    );
+    expect(f.msmeReserved).toBe(true);
+    expect(f.minEmployees).toBe(20);
   });
 });
