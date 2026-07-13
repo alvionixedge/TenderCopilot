@@ -47,10 +47,14 @@ const PSU_ORGS =
 const STATE_ORGS =
   /\b(Karnataka|Maharashtra|Tamil Nadu|Kerala|Gujarat|Rajasthan|Punjab|Haryana|Bihar|Odisha|Telangana|Andhra|Uttar Pradesh|Madhya Pradesh|West Bengal|Zilla|Zila|Panchayat|Nagar|Municipal|Corporation|PWD|Public Works|State)\b/i;
 
-/** Coarse portal-type label from the issuing organisation (all sourced via CPPP). */
+/**
+ * Coarse portal-type label from the issuing organisation (all sourced via CPPP).
+ * Note: we do NOT crawl GeM (Government e-Marketplace) — it is login-walled — so
+ * there is no "GeM" label. GeM tenders would only arrive via an external
+ * provider feed, which supplies its own source label.
+ */
 export function classifySource(org: string, title: string): string {
   const s = `${org} ${title}`;
-  if (/\bGeM\b|Government e[- ]?Marketplace/i.test(s)) return "GeM";
   if (PSU_ORGS.test(s)) return "PSU";
   if (STATE_ORGS.test(s)) return "StatePortal";
   return "CPPP";
