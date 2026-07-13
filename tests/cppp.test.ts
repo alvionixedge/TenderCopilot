@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  canonicalCpppUrl,
   classifySource,
   detectMinEmployees,
   detectMsmeReserved,
@@ -146,5 +147,21 @@ describe("extractDetailFields (enrichment fields)", () => {
     );
     expect(f.msmeReserved).toBe(true);
     expect(f.minEmployees).toBe(20);
+  });
+});
+
+describe("canonicalCpppUrl (stable dedup key)", () => {
+  const base = "https://eprocure.gov.in/cppp/tendersfullview/MTM5NDIwNTM=";
+  it("strips the rotating timestamp segment so the same tender dedupes", () => {
+    const fetch1 = `${base}A13h1HASH1A13h1HASH2A13h1MTc4Mzk1NDk1Nw==A13h1REF`;
+    const fetch2 = `${base}A13h1HASH1A13h1HASH2A13h1MTc4Mzk1NDk2Mg==A13h1REF`;
+    expect(canonicalCpppUrl(fetch1)).toBe(base);
+    expect(canonicalCpppUrl(fetch2)).toBe(base);
+    expect(canonicalCpppUrl(fetch1)).toBe(canonicalCpppUrl(fetch2));
+  });
+  it("leaves a non-CPPP URL unchanged", () => {
+    expect(canonicalCpppUrl("https://gem.gov.in/tenders/GEM-2026-X")).toBe(
+      "https://gem.gov.in/tenders/GEM-2026-X",
+    );
   });
 });
