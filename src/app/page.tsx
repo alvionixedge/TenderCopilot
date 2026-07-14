@@ -80,9 +80,43 @@ const plans = [
   },
 ];
 
+// Structured data for rich search results (SoftwareApplication + Organization).
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      name: "TenderCopilot AI",
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      url: "https://www.tendercopilot.in",
+      description:
+        "AI tender management for Indian government procurement: live CPPP, state and PSU tenders matched to your company, instant eligibility scoring, and compliance-ready proposal generation.",
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "INR",
+        description: "Free plan — evaluate the full workflow at no cost.",
+      },
+      audience: { "@type": "Audience", audienceType: "Indian SMBs, MSMEs and bid consultants" },
+    },
+    {
+      "@type": "Organization",
+      name: "TenderCopilot AI",
+      url: "https://www.tendercopilot.in",
+      logo: "https://www.tendercopilot.in/brand/mark.png",
+      email: "support@tendercopilot.in",
+    },
+  ],
+};
+
 export default function LandingPage() {
   return (
     <main className="min-h-screen bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
@@ -119,7 +153,7 @@ export default function LandingPage() {
             AI-POWERED PROCUREMENT & BID MANAGEMENT
           </p>
           <h1 className="mx-auto max-w-3xl text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-            Win more government tenders with{" "}
+            Win more Indian government tenders with{" "}
             <span className="text-brand-600">an AI copilot</span> on your bid desk
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-600">
