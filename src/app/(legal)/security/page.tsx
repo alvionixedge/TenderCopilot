@@ -102,7 +102,7 @@ export default function SecurityPolicy() {
       <H2>11. Reporting a vulnerability</H2>
       <P>
         If you believe you have found a security issue, please contact{" "}
-        <strong>security@tendercopilot.in</strong>. We appreciate responsible disclosure and will
+        <strong>support@tendercopilot.in</strong>. We appreciate responsible disclosure and will
         acknowledge your report promptly.
       </P>
     </>
