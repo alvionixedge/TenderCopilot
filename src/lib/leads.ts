@@ -72,7 +72,11 @@ export async function captureLeadAndNotify(input: LeadInput): Promise<void> {
     ]);
 
     try {
-      await sendEmail({ to: email, ...welcome });
+      const res = await sendEmail({ to: email, ...welcome });
+      // A skipped send (RESEND_API_KEY unset) must NOT mark the lead as
+      // welcomed — otherwise the address is permanently burned and never
+      // receives the email once Resend is configured.
+      if (!res.sent) return;
       if (matches.length > 0) {
         await sendEmail({ to: email, ...matchingTendersEmail(matches) });
       }
