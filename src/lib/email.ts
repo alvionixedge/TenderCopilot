@@ -16,7 +16,7 @@ function getClient(): Resend {
 }
 
 function fromAddress(): string {
-  return process.env.RESEND_FROM_EMAIL || "TenderCopilot AI <noreply@tendercopilot.in>";
+  return process.env.RESEND_FROM_EMAIL || "TenderCopilot AI <support@tendercopilot.in>";
 }
 
 export function appUrl(): string {
