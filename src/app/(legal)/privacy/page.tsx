@@ -123,7 +123,7 @@ export default function PrivacyPolicy() {
       <H2>10. Changes &amp; contact</H2>
       <P>
         We may update this policy; material changes will be notified in-product. Questions or
-        grievances: <strong>privacy@tendercopilot.in</strong>.
+        grievances: <strong>support@tendercopilot.in</strong>.
       </P>
     </>
   );

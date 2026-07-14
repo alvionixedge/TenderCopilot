@@ -90,7 +90,7 @@ export default function TermsOfService() {
       </P>
 
       <H2>11. Contact</H2>
-      <P>Questions about these Terms: <strong>legal@tendercopilot.in</strong>.</P>
+      <P>Questions about these Terms: <strong>support@tendercopilot.in</strong>.</P>
     </>
   );
 }

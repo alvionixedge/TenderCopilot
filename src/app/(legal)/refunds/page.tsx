@@ -23,7 +23,7 @@ export default function RefundsPolicy() {
 
       <H2>1. Cancelling your subscription</H2>
       <UL>
-        <li>You can cancel at any time from <strong>Settings → Billing</strong> in the app, or by emailing <strong>billing@tendercopilot.in</strong>.</li>
+        <li>You can cancel at any time from <strong>Settings → Billing</strong> in the app, or by emailing <strong>support@tendercopilot.in</strong>.</li>
         <li>Cancellation stops all future charges. For recurring subscriptions, no further renewal is billed.</li>
         <li>Your paid features remain active until the end of the current billing period. After that, your organization moves to the Free plan.</li>
       </UL>
@@ -64,7 +64,7 @@ export default function RefundsPolicy() {
 
       <H2>6. Contact</H2>
       <P>
-        Questions about a charge, cancellation, or refund: <strong>billing@tendercopilot.in</strong>.
+        Questions about a charge, cancellation, or refund: <strong>support@tendercopilot.in</strong>.
       </P>
     </>
   );
