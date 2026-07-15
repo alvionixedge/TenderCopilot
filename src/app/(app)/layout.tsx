@@ -7,6 +7,7 @@ import {
   Gauge,
   KanbanSquare,
   LayoutDashboard,
+  LifeBuoy,
   Radar,
   Settings,
 } from "lucide-react";
@@ -67,6 +68,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           )}
         </nav>
         <div className="border-t border-slate-200 p-4">
+          <a
+            href="mailto:support@tendercopilot.in"
+            className="mb-3 flex items-center gap-2 rounded-lg px-1 py-1 text-xs font-medium text-slate-600 hover:text-brand-700"
+            title="Email support@tendercopilot.in"
+          >
+            <LifeBuoy className="h-4 w-4 text-slate-400" />
+            Help &amp; support
+          </a>
           <div className="mb-3 flex items-center gap-3">
             <Mark size={32} />
             <div className="min-w-0">

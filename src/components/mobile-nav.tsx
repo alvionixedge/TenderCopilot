@@ -82,6 +82,12 @@ export function MobileNav({
             </nav>
 
             <div className="border-t border-slate-200 p-4">
+              <a
+                href="mailto:support@tendercopilot.in"
+                className="mb-3 block rounded-lg px-1 py-1 text-sm font-medium text-slate-600 hover:text-brand-700"
+              >
+                Help &amp; support — support@tendercopilot.in
+              </a>
               <form action={signOutAction}>
                 <button
                   type="submit"

@@ -55,6 +55,17 @@ export default async function SettingsPage() {
       <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
       <p className="mt-1 text-sm text-slate-600">Organization, plan and members.</p>
 
+      <div className="mt-6 rounded-2xl border border-brand-200 bg-brand-50 p-5">
+        <h2 className="text-sm font-semibold text-brand-900">Need help?</h2>
+        <p className="mt-1 text-sm text-brand-800">
+          For any issue, question, or billing query, email{" "}
+          <a href="mailto:support@tendercopilot.in" className="font-semibold underline">
+            support@tendercopilot.in
+          </a>
+          {" "}— we usually reply within one business day.
+        </p>
+      </div>
+
       <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Organization</h2>
         <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">

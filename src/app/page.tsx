@@ -58,6 +58,7 @@ const plans = [
     blurb: "Evaluate the full workflow",
     items: ["1 company profile", "20 tenders/day in feed", "3 proposals/month", "Single seat"],
     cta: "Start free",
+    href: "/signin",
     highlight: false,
   },
   {
@@ -67,6 +68,7 @@ const plans = [
     blurb: "For active bidding teams",
     items: ["3 company profiles", "Full tender feed", "25 proposals/month", "5 seats", "Priority scoring"],
     cta: "Start 14-day trial",
+    href: "/signin",
     highlight: true,
   },
   {
@@ -76,6 +78,7 @@ const plans = [
     blurb: "Consultancies & enterprises",
     items: ["25 client companies", "Unlimited proposals", "25 seats", "Win/loss analytics", "Email support"],
     cta: "Contact sales",
+    href: "mailto:support@tendercopilot.in?subject=Business%20plan%20enquiry%20%E2%80%94%20TenderCopilot%20AI",
     highlight: false,
   },
 ];
@@ -266,16 +269,29 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link
-                href="/signin"
-                className={`mt-8 block rounded-lg px-4 py-2.5 text-center text-sm font-semibold ${
-                  p.highlight
-                    ? "bg-white text-brand-800 hover:bg-brand-50"
-                    : "bg-brand-700 text-white hover:bg-brand-800"
-                }`}
-              >
-                {p.cta}
-              </Link>
+              {p.href.startsWith("mailto:") ? (
+                <a
+                  href={p.href}
+                  className={`mt-8 block rounded-lg px-4 py-2.5 text-center text-sm font-semibold ${
+                    p.highlight
+                      ? "bg-white text-brand-800 hover:bg-brand-50"
+                      : "bg-brand-700 text-white hover:bg-brand-800"
+                  }`}
+                >
+                  {p.cta}
+                </a>
+              ) : (
+                <Link
+                  href={p.href}
+                  className={`mt-8 block rounded-lg px-4 py-2.5 text-center text-sm font-semibold ${
+                    p.highlight
+                      ? "bg-white text-brand-800 hover:bg-brand-50"
+                      : "bg-brand-700 text-white hover:bg-brand-800"
+                  }`}
+                >
+                  {p.cta}
+                </Link>
+              )}
             </div>
           ))}
         </div>
@@ -290,6 +306,7 @@ export default function LandingPage() {
             <Link href="/security" className="hover:text-brand-700">Data &amp; Security</Link>
             <Link href="/terms" className="hover:text-brand-700">Terms</Link>
             <Link href="/refunds" className="hover:text-brand-700">Refunds</Link>
+            <a href="mailto:support@tendercopilot.in" className="hover:text-brand-700">Contact</a>
             <Link href="/signin" className="hover:text-brand-700">Sign in</Link>
           </nav>
           <p className="text-sm text-slate-500">
