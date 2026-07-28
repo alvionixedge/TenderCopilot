@@ -7,6 +7,7 @@ import { ScoreBadge, StatusPill } from "@/components/score-badge";
 import { AnalyzeButton } from "@/components/actions";
 import { getActiveCompany } from "@/lib/tenant";
 import { missingRequiredProfileFields } from "@/lib/company-profile";
+import { getDbStatus, isDbDegraded } from "@/lib/db-health";
 import { fitsProfile, tenderRelevance } from "@/lib/tender-filter";
 import { tryQuery } from "@/lib/safe";
 
@@ -31,6 +32,22 @@ export default async function TendersPage({
   const showAll = sp.all === "1";
   const company = await tryQuery(() => getActiveCompany(session.orgId), null);
   const missing = missingRequiredProfileFields(company);
+
+  // During a database outage every read falls back to empty, which would make a
+  // user with a complete profile see the "create your profile" gate below. The
+  // layout already explains the outage, so just don't assert anything about
+  // their data here.
+  if (isDbDegraded(await getDbStatus())) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <h1 className="text-2xl font-bold text-slate-900">Tender feed</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          The tender feed is temporarily unavailable while we restore a connection. Your company
+          profile and saved data are unaffected — please check back shortly.
+        </p>
+      </div>
+    );
+  }
 
   // --- Profile gate: the feed is filtered to your profile, so it requires a
   // complete-enough profile before showing anything. ---

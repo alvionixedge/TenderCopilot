@@ -13,8 +13,10 @@ import {
 } from "lucide-react";
 import { auth, signOut } from "@/auth";
 import { isAdminUser } from "@/lib/admin";
+import { getDbStatus, isDbDegraded } from "@/lib/db-health";
 import { Logo, Mark } from "@/components/logo";
 import { MobileNav } from "@/components/mobile-nav";
+import { ServiceBanner } from "@/components/service-banner";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -31,6 +33,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!session?.userId) redirect("/signin");
 
   const showOps = isAdminUser(session.user?.email);
+  const degraded = isDbDegraded(await getDbStatus());
 
   async function signOutAction() {
     "use server";
@@ -112,7 +115,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         />
       </div>
 
-      <main className="flex-1 px-4 pb-16 pt-20 md:ml-60 md:px-8 md:pt-8">{children}</main>
+      <main className="flex-1 px-4 pb-16 pt-20 md:ml-60 md:px-8 md:pt-8">
+        {degraded && (
+          <div className="mx-auto max-w-6xl">
+            <ServiceBanner />
+          </div>
+        )}
+        {children}
+      </main>
     </div>
   );
 }

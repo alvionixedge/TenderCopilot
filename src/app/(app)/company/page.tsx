@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { companyDocuments } from "@/db/schema";
 import { CompanyForm, DocumentUpload } from "@/components/company-form";
 import { CompanyProfileEditable } from "@/components/company-profile-editable";
+import { getDbStatus, isDbDegraded } from "@/lib/db-health";
 import { isR2Configured } from "@/lib/r2";
 import { getActiveCompany } from "@/lib/tenant";
 import { tryQuery } from "@/lib/safe";
@@ -20,6 +21,7 @@ export default async function CompanyPage({
   const session = (await auth())!;
   const company = await tryQuery(() => getActiveCompany(session.orgId), null);
   const startInEdit = (await searchParams).edit === "1";
+  const degraded = isDbDegraded(await getDbStatus());
 
   const documents = company
     ? await tryQuery(
@@ -41,7 +43,15 @@ export default async function CompanyPage({
       </p>
 
       <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        {company ? (
+        {degraded ? (
+          // Never show the blank "create profile" form during an outage — an
+          // existing profile reads as absent, and re-entering it would fail.
+          <p className="text-sm text-slate-600">
+            Your company profile can&rsquo;t be loaded right now because of a temporary
+            connection problem. Nothing has been lost — please check back shortly rather than
+            re-entering your details.
+          </p>
+        ) : company ? (
           <CompanyProfileEditable
             initialEdit={startInEdit}
             company={{
