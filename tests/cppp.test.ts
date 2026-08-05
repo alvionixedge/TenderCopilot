@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   canonicalCpppUrl,
   classifySource,
   detectMinEmployees,
   detectMsmeReserved,
   extractDetailFields,
+  fetchListingPage,
   parseCpppDate,
   parseCpppListing,
 } from "@/lib/crawlers/cppp";
@@ -163,5 +164,76 @@ describe("canonicalCpppUrl (stable dedup key)", () => {
     expect(canonicalCpppUrl("https://gem.gov.in/tenders/GEM-2026-X")).toBe(
       "https://gem.gov.in/tenders/GEM-2026-X",
     );
+  });
+});
+
+describe("fetchListingPage (transient-failure retries)", () => {
+  // The real backoff sleeps 3s then 8s; fake timers keep the suite fast.
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  const ok = (body: string) => new Response(body, { status: 200 });
+  const status = (code: number) => new Response("", { status: code, statusText: "x" });
+
+  /** Runs the fetch while draining the backoff timers it awaits. */
+  async function withTimers<T>(promise: Promise<T>): Promise<T> {
+    const settled = promise.then(
+      (value) => ({ ok: true as const, value }),
+      (error) => ({ ok: false as const, error }),
+    );
+    await vi.runAllTimersAsync();
+    const result = await settled;
+    if (!result.ok) throw result.error;
+    return result.value;
+  }
+
+  it("succeeds on the first attempt without retrying", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(ok("<html>page</html>"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(withTimers(fetchListingPage("latestactivetendersnew", 0))).resolves.toBe(
+      "<html>page</html>",
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers from a timeout on the first attempt", async () => {
+    // Exactly the 2026-08-05 failure: one aborted request, then the portal responds.
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new DOMException("The operation was aborted due to timeout"))
+      .mockResolvedValue(ok("<html>recovered</html>"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(withTimers(fetchListingPage("latestactivetendersnew", 0))).resolves.toBe(
+      "<html>recovered</html>",
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a 5xx and gives up after three attempts", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(status(503));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(withTimers(fetchListingPage("latestactivetendersnew", 0))).rejects.toThrow(
+      /responded 503/,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not retry a 404 — it will never fix itself", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(status(404));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(withTimers(fetchListingPage("latestactivetendersnew", 0))).rejects.toThrow(
+      /responded 404/,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
