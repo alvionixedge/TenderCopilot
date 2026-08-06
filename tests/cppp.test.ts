@@ -217,14 +217,40 @@ describe("fetchListingPage (transient-failure retries)", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("retries a 5xx and gives up after three attempts", async () => {
+  it("retries a 5xx and gives up, on the ordinary budget", async () => {
     const fetchMock = vi.fn().mockResolvedValue(status(503));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(withTimers(fetchListingPage("latestactivetendersnew", 0))).rejects.toThrow(
+    await expect(withTimers(fetchListingPage("highvaluetenders", 1))).rejects.toThrow(
       /responded 503/,
     );
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("gives the critical page a larger budget", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(status(503));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      withTimers(fetchListingPage("latestactivetendersnew", 0, true)),
+    ).rejects.toThrow(/responded 503/);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it("recovers on a late attempt, as the portal comes back in waves", async () => {
+    // The 2026-08-06 shape: several stalled requests, then a slow-but-OK one.
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new DOMException("timeout"))
+      .mockRejectedValueOnce(new DOMException("timeout"))
+      .mockRejectedValueOnce(new DOMException("timeout"))
+      .mockResolvedValue(ok("<html>late recovery</html>"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      withTimers(fetchListingPage("latestactivetendersnew", 0, true)),
+    ).resolves.toBe("<html>late recovery</html>");
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("does not retry a 404 — it will never fix itself", async () => {
