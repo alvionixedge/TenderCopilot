@@ -44,7 +44,7 @@ budget-PaaS, multi-tenant SaaS).
 | **Repository** | `https://github.com/alvionixedge/TenderCopilot` |
 | **Production branch** | `main` — every merge auto-deploys to production via Vercel |
 | **Preview** | Every branch push builds an isolated Vercel preview (SSO-protected) |
-| **Health check** | `https://www.tendercopilot.in/api/health` → `{"status":"ok","database":"ok","version":"<git sha>"}` |
+| **Health check** | `https://www.tendercopilot.in/api/health` → `{"status":"ok","database":"not_checked",...}` (shallow — safe to poll). Add `?deep=1` to include the database probe. |
 
 **Cloud-only (spec §2.4):** the app is never deployed to or run on a local/self-hosted server
 in production. All environments run on managed PaaS. Local runs are for authoring/testing only.

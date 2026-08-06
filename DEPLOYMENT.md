@@ -189,11 +189,17 @@ add — applying each to **Production** and **Preview** unless noted:
 
 ### 3.1 Verify health
 
-Open `https://<your-app>/api/health` in a browser. Expected:
+Open `https://<your-app>/api/health?deep=1` in a browser. Expected:
 
 ```json
 { "status": "ok", "database": "ok", "version": "abc1234", ... }
 ```
+
+> **Uptime monitors must use the plain `/api/health`** (no `?deep=1`). The deep
+> form queries the database, which wakes the Neon compute on every request — a
+> monitor polling it every minute keeps the compute awake 24/7 and exhausts the
+> monthly compute allowance even with no users. The shallow form reports app
+> liveness and returns `"database": "not_checked"`.
 
 If `database` is `unconfigured` or `error`, re-check `DATABASE_URL` /
 `DATABASE_POOL_URL` in Vercel → Settings → Environment Variables, then
@@ -238,7 +244,7 @@ Expected: `{"ok":true,"inserted":10,"updated":0}`.
    open the file in Word and confirm the compliance structure.
 6. **Add to pipeline** → **Pipeline** → move the card across stages → set **WON** →
    the outcome is recorded (visible on the dashboard "Bids won" stat).
-7. `https://<your-app>/api/health` once more — still `ok`.
+7. `https://<your-app>/api/health?deep=1` once more — still `ok`.
 
 ### 3.5 Turn on deploy protection rules (recommended)
 
