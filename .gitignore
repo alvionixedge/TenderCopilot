@@ -61,3 +61,6 @@ files/
 # filled-in credentials inventory (keep in a password manager, never commit)
 CREDENTIALS.md
 credentials.md
+
+# editor / sed backup files
+*.bak
