@@ -192,11 +192,26 @@ export function extractDetailFields(text: string): DetailFields {
   };
 }
 
-/** Per-attempt request timeout. The portal normally answers in ~4s. */
-const FETCH_TIMEOUT_MS = 30000;
-const FETCH_ATTEMPTS = 3;
-/** Backoff before attempt 2 and 3. Long enough to outlast a brief portal stall. */
-const RETRY_BACKOFF_MS = [3000, 8000];
+/**
+ * Per-attempt request timeout. The listing endpoints answer in ~4s when the
+ * portal is healthy, but were measured at 10s under load and past 35s while
+ * degraded (static pages on the same host stayed at 0.2s throughout). A tight
+ * timeout therefore turns "slow" into "failed" for no good reason.
+ */
+const FETCH_TIMEOUT_MS = 60000;
+
+/** Budget for an ordinary page — fail fast, the caller just moves on. */
+const FETCH_ATTEMPTS = 2;
+const RETRY_BACKOFF_MS = [3000];
+
+/**
+ * Budget for the main listing's first page. Its failure aborts the entire
+ * crawl, so it is worth waiting out a multi-minute stall: CPPP degrades and
+ * recovers in waves rather than going flat down, so a later attempt often
+ * succeeds where the first three did not.
+ */
+const CRITICAL_FETCH_ATTEMPTS = 5;
+const CRITICAL_RETRY_BACKOFF_MS = [5000, 15000, 30000, 60000];
 
 /** 5xx and 429 are transient; a 404 or other 4xx means retrying is pointless. */
 function isRetriableStatus(status: number): boolean {
@@ -211,18 +226,25 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 /**
  * Fetches one listing page, retrying transient failures.
  *
- * eprocure.gov.in is a slow public portal that intermittently stalls or returns
- * a 5xx for a few seconds at a time. Without retries a single such blip fails
- * the whole scheduled crawl (the main listing's first page is fatal by design),
- * which is what happened on 2026-08-05 — the portal was answering normally
- * again minutes later.
+ * eprocure.gov.in is a slow public portal that stalls or returns a 5xx for
+ * stretches at a time. Without retries a single such blip fails the whole
+ * scheduled crawl (the main listing's first page is fatal by design), which is
+ * what happened on 2026-08-05 and again on 2026-08-06.
+ *
+ * `critical` selects the larger budget, for the one page whose failure is fatal.
  */
-export async function fetchListingPage(listing: string, page: number): Promise<string> {
+export async function fetchListingPage(
+  listing: string,
+  page: number,
+  critical = false,
+): Promise<string> {
   const base = `${ROOT}/${listing}/cpppdata`;
   const url = page > 0 ? `${base}?page=${page}` : base;
+  const attempts = critical ? CRITICAL_FETCH_ATTEMPTS : FETCH_ATTEMPTS;
+  const backoff = critical ? CRITICAL_RETRY_BACKOFF_MS : RETRY_BACKOFF_MS;
 
   let lastError: unknown;
-  for (let attempt = 1; attempt <= FETCH_ATTEMPTS; attempt++) {
+  for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
       const res = await fetch(url, {
         headers: { "user-agent": UA, accept: "text/html,application/xhtml+xml" },
@@ -238,12 +260,12 @@ export async function fetchListingPage(listing: string, page: number): Promise<s
       lastError = err;
     }
 
-    if (attempt < FETCH_ATTEMPTS) {
+    if (attempt < attempts) {
       console.warn(
-        `CPPP ${listing} p${page}: attempt ${attempt}/${FETCH_ATTEMPTS} failed ` +
+        `CPPP ${listing} p${page}: attempt ${attempt}/${attempts} failed ` +
           `(${String(lastError).slice(0, 120)}) — retrying`,
       );
-      await sleep(RETRY_BACKOFF_MS[attempt - 1]);
+      await sleep(backoff[attempt - 1]);
     }
   }
   throw lastError;
@@ -263,11 +285,12 @@ export async function crawlCppp(maxPages = 5): Promise<NormalizedTender[]> {
     const isMain = listing === "latestactivetendersnew";
     const pages = isMain ? maxPages : Math.min(2, maxPages);
     for (let p = 0; p < pages; p++) {
+      const critical = isMain && p === 0; // this page's failure aborts the crawl
       let rows: NormalizedTender[];
       try {
-        rows = parseCpppListing(await fetchListingPage(listing, p));
+        rows = parseCpppListing(await fetchListingPage(listing, p, critical));
       } catch (err) {
-        if (isMain && p === 0) throw err; // the main listing's first page must work
+        if (critical) throw err; // the main listing's first page must work
         break; // a sibling/later-page hiccup: keep what we have
       }
       if (rows.length === 0) break;
